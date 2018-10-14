@@ -6,6 +6,15 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 
+/**
+ * @Author Kaylin Zaroukian, Jerry, Cody Krueger
+ * @Date 14 OCT 2018
+ * CIS 457 Data Comm
+ * Project 2
+ * 
+ * References:
+ */
+
 int main() {
   // packet socket appears to be eth1
   int packet_socket;
