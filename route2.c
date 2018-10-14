@@ -2,16 +2,19 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
+#include <netinet/ip.h>
+#include <arpa/inet.h>
 
 /**
  * @Author Kaylin Zaroukian, Jerry, Cody Krueger
  * @Date 14 OCT 2018
  * CIS 457 Data Comm
  * Project 2
- * 
+ *
  * References:
  */
 
@@ -225,17 +228,19 @@ printf("Loop number: %d\n",i);
         // arp_hdr = (struct ether_arp*)(buf + 14);
 
         // ip headers too
-        struct iphdr *ip;
-        ip = (struct iphdr*)(buf + 14);
+        struct iphdr *ip_pckt_hdr = (struct iphdr *)(buf + 14);
 
         // we are receiving all arp packets
         // checks to see which packets are arp
         if (ntohs(eth->ether_type) == ETH_P_ARP) {
           printf("ARP packet\n");
-          // char* src_mac = ether_ntoa((struct ether_addr*) &eth->ether_shost);
-          // char* src_ip = inet_ntoa((struct in_addr) &ip->saddr);
-          // char* target_ip = inet_ntoa((struct in_addr) &ip->daddr);
-
+          //char *src_mac = ether_ntoa((struct ether_addr *)&eth->ether_shost);
+          uint8_t src_mac[6];
+          while(i < 6) {
+            src_mac[i] = eth->ether_shost[i];
+          }
+          uint32_t ip_source_addr = ip_pckt_hdr->saddr;
+          uint32_t ip_dest_addr = ip_pckt_hdr->daddr;
 
           //u_char src_ip = arp_hdr->arp_spa[1];
           //u_char goal_ip = arp_hdr->arp_tpa[2];
