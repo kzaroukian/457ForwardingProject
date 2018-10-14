@@ -12,6 +12,7 @@ int main() {
   int lo_socket;
   int eth0_socket;
   int eth1_socket;
+  unsigned char router_mac_addr[6];
 
   // set of sockets
   fd_set sockets;
@@ -52,6 +53,10 @@ int main() {
 	//could also use SOCK_DGRAM to cut off link layer header
 	//ETH_P_ALL indicates we want all (upper layer) protocols
 	//we could specify just a specific one
+
+  struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
+  memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
+
 	packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
   if(packet_socket<0){
@@ -162,6 +167,24 @@ printf("Loop number: %d\n",i);
   FD_SET(eth0_socket, &sockets);
   FD_SET(eth1_socket, &sockets);
 
+  // typedef struct {
+  //   uint16_t op;
+  //   // 4 bytes
+  //   uint32_t net_type;
+  //   // eth mac address is 6 bytes
+  //   uint32_t eth_mac;
+  //   uint16_t src_ip;
+  //   uint16_t src_mac;
+  //   uint16_t dst_ip;
+  //   uint16_dst_mac;
+  // } arp_header;
+  //
+  // typedef struct {
+  //   uint16_t type;
+  //   uint16_t code;
+  //   uint16_t checksum;
+  // } icmp_header;
+
 
   printf("Ready to recieve now\n");
   while(1){
@@ -184,6 +207,31 @@ printf("Loop number: %d\n",i);
           continue;
         //start processing all others
         printf("Got a %d byte packet\n", n);
+
+        // header for arp
+        // not sure if we need both of these
+        struct ether_header *eth;
+        eth = (struct ether_header*)buf;
+        // struct ether_arp *arp_hdr;
+        // arp_hdr = (struct ether_arp*)(buf + 14);
+
+        // ip headers too
+        struct iphdr *ip;
+        ip = (struct iphdr*)(buf + 14);
+
+        // we are receiving all arp packets
+        // checks to see which packets are arp
+        if (ntohs(eth->ether_type) == ETH_P_ARP) {
+          printf("ARP packet\n");
+          // char* src_mac = ether_ntoa((struct ether_addr*) &eth->ether_shost);
+          // char* src_ip = inet_ntoa((struct in_addr) &ip->saddr);
+          // char* target_ip = inet_ntoa((struct in_addr) &ip->daddr);
+
+
+          //u_char src_ip = arp_hdr->arp_spa[1];
+          //u_char goal_ip = arp_hdr->arp_tpa[2];
+          //printf("ARP: %d, %d, %d\n", src_mac, src_ip, goal_ip);
+        }
       }
     }
     FD_CLR(i,&sockets);
