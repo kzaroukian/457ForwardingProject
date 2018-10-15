@@ -7,6 +7,7 @@
 #include <sys/types.h>
 #include <ifaddrs.h>
 #include <netinet/ip.h>
+#include <netinet/if_ether.h>
 #include <arpa/inet.h>
 
 /**
@@ -44,19 +45,6 @@ int main() {
   int eth0_socket;
   int eth1_socket;
   u_char router_mac_addr[6];
-
-// may want to use all u_shorts
-  struct arp_header{
-    u_short mac_addr;
-    u_short ip_addr;
-    u_char mac_addr_len;
-    u_char ip_addr_len;
-    u_short op;
-    u_short src_mac;
-    u_short src_ip;
-    u_short dst_mac;
-    u_short dst_ip;
-  };
 
   // set of sockets
   fd_set sockets;
@@ -252,12 +240,14 @@ int main() {
         if (ntohs(eth_request->ether_type) == ETH_P_ARP) {
           printf("ARP packet\n");
 
-          struct arp_header *arp_request = (struct arp_header*)(buf+14);
+          //struct arp_header *arp_request = (struct arp_header*)(buf+14);
+          struct ether_arp *arp_request = (struct ether_arp*)(buf+14);
 
           char reply_data[1500];
 
           struct ether_header *eth_reply = (struct ether_header*)reply_data;
-          struct arp_header *arp_reply = (struct arp_header*)(reply_data+14);
+          //struct arp_header *arp_reply = (struct arp_header*)(reply_data+14);
+          struct ether_arp *arp_reply = (struct ether_arp*)(reply_data+14);
 
           // populates ethernet header on ARP reply
           memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
@@ -267,21 +257,12 @@ int main() {
 
           // populates ARP header on ARP reply
           printf("Starting arp_reply\n");
-          arp_reply->mac_addr = arp_request->mac_addr;
-          arp_reply->ip_addr = arp_request->ip_addr;
-          printf("continuing arp reply\n");
-          // should be 6
-          arp_reply->mac_addr_len = arp_request->mac_addr_len;
-          // should be 4
-          arp_reply->ip_addr_len = arp_request->ip_addr_len;
-          // should be 2
-          arp_reply->op = htons(2);
-          printf("continuing arp reply, 1st 5 fields established\n");
 
-          memcpy(&(arp_reply->src_mac), router_mac_addr, 6);
-          memcpy(&(arp_reply->dst_mac), &(arp_request->src_mac), 6);
-          memcpy(&(arp_reply->src_ip), &(arp_request->dst_ip), 4);
-          memcpy(&(arp_reply->dst_ip), &(arp_reply->src_ip),4);
+          memcpy(&(arp_reply->ea_hdr), &(arp_request->ea_hdr), sizeof(arp_request->ea_hdr));
+          memcpy(&(arp_reply->arp_sha), router_mac_addr, 6);
+          memcpy(&(arp_reply->arp_spa), &(arp_request->arp_tpa), 4);
+          memcpy(&(arp_reply->arp_tha), &(arp_request->arp_sha), 6);
+          memcpy(&(arp_reply->arp_tpa), &(arp_request->arp_spa), 4);
 
           int x = send(i, reply_data, 42, 0);
 
