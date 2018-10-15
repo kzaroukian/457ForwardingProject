@@ -8,7 +8,8 @@
 #include <ifaddrs.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
-#include <net/if_ether.h>
+#include <netinet/if_ether.h>
+#include <string.h>
 
 /*****************************************************
  * @Author Kaylin Zaroukian, Runquan Ye, Cody Krueger
@@ -268,8 +269,16 @@ int main() {
         // ip headers too
         struct iphdr *ip_pckt_hdr = (struct iphdr *)&buf[14];
 
+	//jerry add, for double checking the IP address
+	struct ip *ip_H = (struct ip *)&buf[14];
+	memcpy(tempIP, &ip_H -> ip_src, 4);
+
         //jerry add, ether_arp is for geting the sender's ip and mac
         struct ether_arp *arpheader = (struct ether_arp*)&buf;
+
+	//Jerry: get mac and ip address from the sender
+         memcpy(senderMAC, arpheader -> arp_sha, 6);
+         memcpy(senderIP, arpheader -> arp_spa, 4);
 
         // we are receiving all arp packets
         // checks to see which packets are arp
@@ -277,7 +286,6 @@ int main() {
           printf("ARP packet\n");
           //char *src_mac = ether_ntoa((struct ether_addr *)&eth->ether_shost);
 
-          //Jerry: I am not sure what you try to do here, but i guess you try to get mac and ip
           uint8_t src_mac[6];
           while(i < 6) {
             src_mac[i] = eth->ether_shost[i];
@@ -285,12 +293,13 @@ int main() {
           uint32_t ip_source_addr = ip_pckt_hdr->saddr;
           uint32_t ip_dest_addr = ip_pckt_hdr->daddr;
 
-          //Jerry: I am not sure what you try to do here, but i guess you try to get mac and ip
-          memcpy(senderMAC, arpheader -> arp_sha, 6);
-          memcpy(senderIP, arpheader -> arp_spa, 4);
-          printf("The senderIP is: %s\n",senderIP);
-            printf("The senderIP is: %02x:%02x:%02x:%02x:%02x:%02x\n",senderIP[0] &0xff, senderIP[1] &0xff, senderIP[2] &0xff, senderIP[3] &0xff);
-
+          
+          //ip address
+          printf("The senderIP is: %02x:%02x:%02x:%02x\n",senderIP[0] &0xff, senderIP[1] &0xff, senderIP[2] &0xff, senderIP[3] &0xff);
+	  //IP address, another version, not sure which on is correct
+	  printf("The tempIP is: %02x:%02x:%02x:%02x\n",tempIP[0] &0xff, tempIP[1] &0xff, tempIP[2] &0xff, tempIP[3] &0xff);
+	  //Mac address
+	  printf("The senderMAC is: %02x:%02x:%02x:%02x:%02x:%02x\n",senderMAC[0] &0xff, senderMAC[1] &0xff, senderMAC[2] &0xff, senderMAC[3] &0xff, senderMAC[4] &0xff, senderMAC[5] &0xff);
           //u_char src_ip = arp_hdr->arp_spa[1];
           //u_char goal_ip = arp_hdr->arp_tpa[2];
           //printf("ARP: %d, %d, %d\n", src_mac, src_ip, goal_ip);
