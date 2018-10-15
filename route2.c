@@ -8,15 +8,16 @@
 #include <ifaddrs.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <net/if_ether.h>
 
-/**
- * @Author Kaylin Zaroukian, Jerry, Cody Krueger
+/*****************************************************
+ * @Author Kaylin Zaroukian, Runquan Ye, Cody Krueger
  * @Date 14 OCT 2018
  * CIS 457 Data Comm
  * Project 2
- * 
+ *
  * References:
- */
+ ***************************************************/
 
 int checksumCalculated(char *buffer, size_t len) {
   size_t i;
@@ -45,6 +46,14 @@ int main() {
   int eth1_socket;
   unsigned char router_mac_addr[6];
 
+  //jerry add for sender ipaddress and sender Mac address and temp store localtion
+  u_char senderIP[4];
+  u_char senderMAC[6];
+
+  u_char tempIP[4];
+  u_char tempMAC[6];
+
+
   // set of sockets
   fd_set sockets;
   FD_ZERO(&sockets);
@@ -63,7 +72,7 @@ int main() {
   }
   //have the list, loop over the list
   int i = 0;
-  for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){ 
+  for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){
     i++;
     //Check if this is a packet address, there will be one per
     //interface.  There are IPv4 and IPv6 as well, but we don't care
@@ -198,6 +207,13 @@ int main() {
   FD_SET(eth0_socket, &sockets);
   FD_SET(eth1_socket, &sockets);
 
+  //struct	ether_arp {
+  //	struct	arphdr ea_hdr;	/* fixed-size header */
+  //	u_char	arp_sha[6];	/* sender hardware address */
+  //	u_char	arp_spa[4];	/* sender protocol address */
+  //	u_char	arp_tha[6];	/* target hardware address */
+  //	u_char	arp_tpa[4];	/* target protocol address */
+  //};
   // typedef struct {
   //   uint16_t op;
   //   // 4 bytes
@@ -228,6 +244,8 @@ int main() {
     int sock;
     struct sockaddr_ll recvaddr;
     char buf[1500];
+
+
     int recvaddrlen;
     int n = 0;
     for(i=0;i<FD_SETSIZE;i++) {
@@ -242,24 +260,36 @@ int main() {
         // header for arp
         // not sure if we need both of these
         struct ether_header *eth;
-        eth = (struct ether_header*)buf;
+        //jerry: here I think should be &buf, becuse your eth is a pointer
+        eth = (struct ether_header*)&buf;
         // struct ether_arp *arp_hdr;
         // arp_hdr = (struct ether_arp*)(buf + 14);
 
         // ip headers too
-        struct iphdr *ip_pckt_hdr = (struct iphdr *)(buf + 14);
+        struct iphdr *ip_pckt_hdr = (struct iphdr *)&buf[14];
+
+        //jerry add, ether_arp is for geting the sender's ip and mac
+        struct ether_arp *arpheader = (struct ether_arp*)&buf;
 
         // we are receiving all arp packets
         // checks to see which packets are arp
         if (ntohs(eth->ether_type) == ETH_P_ARP) {
           printf("ARP packet\n");
           //char *src_mac = ether_ntoa((struct ether_addr *)&eth->ether_shost);
+
+          //Jerry: I am not sure what you try to do here, but i guess you try to get mac and ip
           uint8_t src_mac[6];
           while(i < 6) {
             src_mac[i] = eth->ether_shost[i];
           }
           uint32_t ip_source_addr = ip_pckt_hdr->saddr;
           uint32_t ip_dest_addr = ip_pckt_hdr->daddr;
+
+          //Jerry: I am not sure what you try to do here, but i guess you try to get mac and ip
+          memcpy(senderMAC, arpheader -> arp_sha, 6);
+          memcpy(senderIP, arpheader -> arp_spa, 4);
+          printf("The senderIP is: %s\n",senderIP);
+            printf("The senderIP is: %02x:%02x:%02x:%02x:%02x:%02x\n",senderIP[0] &0xff, senderIP[1] &0xff, senderIP[2] &0xff, senderIP[3] &0xff);
 
           //u_char src_ip = arp_hdr->arp_spa[1];
           //u_char goal_ip = arp_hdr->arp_tpa[2];
