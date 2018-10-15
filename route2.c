@@ -312,10 +312,12 @@ int main() {
         }
       }
     }
+    printf("Exiting for loop\n");
     FD_CLR(i,&sockets);
 
   }
   //free the interface list when we don't need it anymore
+  printf("Exiting routers\n");
   freeifaddrs(ifaddr);
   //exit
   return 0;
