@@ -9,9 +9,10 @@
 #include <netinet/ip.h>
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
+#include <netinet/ip_icmp.h>
 
 /**
- * @Author Kaylin Zaroukian, Jerry, Cody Krueger
+ * @Author Kaylin Zaroukian, Runquan(Jerry) Ye, Cody Krueger
  * @Date 14 OCT 2018
  * CIS 457 Data Comm
  * Project 2
@@ -274,7 +275,15 @@ int main() {
 
           printf("ARP Reply packet sent\n");
 
+
         }
+	//----------------------------ICMP Part-----------------------------
+        if (ntohs(eth_request->ether_type) == 0x800) {
+          struct icmphdr* icmp_header = (struct icmphdr*)(buf+14+20);
+          memcpy(buf, &(icmp_header -> , 6);
+	
+	  
+	}
       }
     }
     printf("Exiting for loop\n");
