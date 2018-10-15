@@ -26,6 +26,19 @@ int main() {
   int eth1_socket;
   unsigned char router_mac_addr[6];
 
+// may want to use all u_shorts
+  typedef struct {
+    u_short mac_addr;
+    u_short ip_addr;
+    u_char mac_addr_len;
+    u_char ip_addr_len;
+    u_short op;
+    u_char src_ip[6];
+    u_char src_mac[4];
+    u_char dst_ip[6];
+    u_char dst_mac[6];
+  } arp_header;
+
   // set of sockets
   fd_set sockets;
   FD_ZERO(&sockets);
@@ -178,18 +191,6 @@ printf("Loop number: %d\n",i);
   FD_SET(lo_socket, &sockets);
   FD_SET(eth0_socket, &sockets);
   FD_SET(eth1_socket, &sockets);
-
-  // typedef struct {
-  //   uint16_t op;
-  //   // 4 bytes
-  //   uint32_t net_type;
-  //   // eth mac address is 6 bytes
-  //   uint32_t eth_mac;
-  //   uint16_t src_ip;
-  //   uint16_t src_mac;
-  //   uint16_t dst_ip;
-  //   uint16_dst_mac;
-  // } arp_header;
   //
   // typedef struct {
   //   uint16_t type;
@@ -222,25 +223,45 @@ printf("Loop number: %d\n",i);
 
         // header for arp
         // not sure if we need both of these
-        struct ether_header *eth;
-        eth = (struct ether_header*)buf;
         // struct ether_arp *arp_hdr;
         // arp_hdr = (struct ether_arp*)(buf + 14);
 
-        // ip headers too
-        struct iphdr *ip_pckt_hdr = (struct iphdr *)(buf + 14);
-
         // we are receiving all arp packets
         // checks to see which packets are arp
-        if (ntohs(eth->ether_type) == ETH_P_ARP) {
+        struct ether_header *eth_request  = (struct ether_header*)buf;
+
+        if (ntohs(eth_request->ether_type) == ETH_P_ARP) {
           printf("ARP packet\n");
-          //char *src_mac = ether_ntoa((struct ether_addr *)&eth->ether_shost);
-          uint8_t src_mac[6];
-          while(i < 6) {
-            src_mac[i] = eth->ether_shost[i];
-          }
-          uint32_t ip_source_addr = ip_pckt_hdr->saddr;
-          uint32_t ip_dest_addr = ip_pckt_hdr->daddr;
+
+          struct arp_header *arp_request = (struct arp_header*)(buf+14);
+
+          char reply_data[1500];
+
+          struct ether_header *eth_reply = (struct ether_header)reply_data;
+          struct arp_header *arp_reply = (struct arp_header)(reply_data+14);
+
+          // populates ethernet header on ARP reply
+          memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
+          memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
+          memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 6);
+
+          // populates ARP header on ARP reply
+          
+
+
+          // typedef struct {
+          //   u_short op;
+          //   u_short src_ip;
+          //   u_short src_mac;
+          //   u_short dst_ip;
+          //   u_short dst_mac;
+          // } arp_header;
+
+          // memcpy(arphdr->src_ip, ip_pckt_hdr->daddr, sizeof(ip_pckt_hdr->daddr));
+          //
+          // memcpy(arphdr->src_mac, received_mac, 6);
+
+          //arp->eth_mac =
 
           //u_char src_ip = arp_hdr->arp_spa[1];
           //u_char goal_ip = arp_hdr->arp_tpa[2];
