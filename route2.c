@@ -14,7 +14,7 @@
  * @Date 14 OCT 2018
  * CIS 457 Data Comm
  * Project 2
- * 
+ *
  * References:
  */
 
@@ -43,20 +43,20 @@ int main() {
   int lo_socket;
   int eth0_socket;
   int eth1_socket;
-  unsigned char router_mac_addr[6];
+  u_char router_mac_addr[6];
 
 // may want to use all u_shorts
-  typedef struct {
+  struct arp_header{
     u_short mac_addr;
     u_short ip_addr;
     u_char mac_addr_len;
     u_char ip_addr_len;
     u_short op;
-    u_char src_ip[6];
-    u_char src_mac[4];
-    u_char dst_ip[6];
+    u_char src_mac[6];
+    u_char src_ip[4];
     u_char dst_mac[6];
-  } arp_header;
+    u_char dst_ip[4];
+  };
 
   // set of sockets
   fd_set sockets;
@@ -76,7 +76,7 @@ int main() {
   }
   //have the list, loop over the list
   int i = 0;
-  for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){ 
+  for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){
     i++;
     //Check if this is a packet address, there will be one per
     //interface.  There are IPv4 and IPv6 as well, but we don't care
@@ -256,35 +256,59 @@ int main() {
 
           char reply_data[1500];
 
-          struct ether_header *eth_reply = (struct ether_header)reply_data;
-          struct arp_header *arp_reply = (struct arp_header)(reply_data+14);
+          struct ether_header *eth_reply = (struct ether_header*)reply_data;
+          struct arp_header *arp_reply = (struct arp_header*)(reply_data+14);
 
           // populates ethernet header on ARP reply
           memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
           memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
           memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 6);
+          printf("Ethernet Header is set up\n");
 
           // populates ARP header on ARP reply
-          
+          printf("Starting arp_reply\n");
+          arp_reply->mac_addr = arp_request->mac_addr;
+          arp_reply->ip_addr = arp_request->ip_addr;
+          printf("continuing arp reply\n");
+          // should be 6
+          arp_reply->mac_addr_len = arp_request->mac_addr_len;
+          // should be 4
+          arp_reply->ip_addr_len = arp_request->ip_addr_len;
+          // should be 2
+          arp_reply->op = htons(2);
+          printf("continuing arp reply, 1st 5 fields established\n");
 
 
-          // typedef struct {
-          //   u_short op;
-          //   u_short src_ip;
-          //   u_short src_mac;
-          //   u_short dst_ip;
-          //   u_short dst_mac;
-          // } arp_header;
+          // sets source mac address
+          int j = 0;
+          int k = 0;
+          // establishes src and dst mac addresses
+          while(j < 6) {
+            arp_reply->src_mac[i] = router_mac_addr[i];
+            arp_reply->dst_mac[i] = arp_request->src_mac[i];
+            j++;
+            printf("continuing arp reply, mac addr\n");
+          }
 
-          // memcpy(arphdr->src_ip, ip_pckt_hdr->daddr, sizeof(ip_pckt_hdr->daddr));
-          //
-          // memcpy(arphdr->src_mac, received_mac, 6);
+          while(k < 4){
+            arp_reply->src_ip[i] = arp_request->dst_ip[i];
+            arp_reply->dst_ip[i] = arp_request->src_ip[i];
+            printf("continuing arp reply, ip addr\n");
+            k++;
 
-          //arp->eth_mac =
+          }
+          printf("Arp header established\n");
 
-          //u_char src_ip = arp_hdr->arp_spa[1];
-          //u_char goal_ip = arp_hdr->arp_tpa[2];
-          //printf("ARP: %d, %d, %d\n", src_mac, src_ip, goal_ip);
+          int x = send(i, reply_data, 42, 0);
+
+          if (x < 0) {
+            printf("ERROR sending ARP Reply!\n");
+            perror("Error sending ARP reply");
+            continue;
+          }
+
+          printf("ARP Reply packet sent\n");
+
         }
       }
     }
