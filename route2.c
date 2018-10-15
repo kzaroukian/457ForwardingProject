@@ -14,9 +14,28 @@
  * @Date 14 OCT 2018
  * CIS 457 Data Comm
  * Project 2
- *
+ * 
  * References:
  */
+
+int checksumCalculated(char *buffer, size_t len) {
+  size_t i;
+  size_t sum;
+  for(i = 0; i < len; i++) {
+    //sum += (int) buffer[i];
+    sum += (unsigned int) buffer[i];
+    // decides when to wrap
+    if (sum & 0xFFFF0000) {
+      sum &= 0xFFFF;
+      sum++;
+    }
+  }
+  // makes sure checksum is only 16 bytes
+  //uint16_t finalSum = (uint16_t) sum;
+  printf("Checksum prior to: %zu\n", sum);
+  // gets 1s compliment
+  return ~(sum & 0xFFFF);
+}
 
 int main() {
   // packet socket appears to be eth1
@@ -57,7 +76,7 @@ int main() {
   }
   //have the list, loop over the list
   int i = 0;
-  for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){
+  for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){ 
     i++;
     //Check if this is a packet address, there will be one per
     //interface.  There are IPv4 and IPv6 as well, but we don't care
@@ -70,122 +89,122 @@ int main() {
       // for eth1
       //create a packet socket on interface r?-eth1
       if(!strncmp(&(tmp->ifa_name[3]),"eth1",4)){
-	printf("Creating Socket on interface %s\n",tmp->ifa_name);
+        printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
-  //create a packet socket
-	//AF_PACKET makes it a packet socket
-	//SOCK_RAW makes it so we get the entire packet
-	//could also use SOCK_DGRAM to cut off link layer header
-	//ETH_P_ALL indicates we want all (upper layer) protocols
-	//we could specify just a specific one
+        //create a packet socket
+        //AF_PACKET makes it a packet socket
+        //SOCK_RAW makes it so we get the entire packet
+        //could also use SOCK_DGRAM to cut off link layer header
+        //ETH_P_ALL indicates we want all (upper layer) protocols
+        //we could specify just a specific one
 
-  struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
-  memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
+        struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
+        memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
 
-	packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+        packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
-  if(packet_socket<0){
-	  perror("socket");
-	  return 2;
-	}
+        if(packet_socket<0){
+          perror("socket");
+          return 2;
+        }
 
-  //Bind the socket to the address, so we only get packets
-	//recieved on this specific interface. For packet sockets, the
-	//address structure is a struct sockaddr_ll (see the man page
-	//for "packet"), but of course bind takes a struct sockaddr.
-	//Here, we can use the sockaddr we got from getifaddrs (which
-	//we could convert to sockaddr_ll if we needed to)
-	if(bind(packet_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
-	  perror("bind");
-	}
-}
+        //Bind the socket to the address, so we only get packets
+        //recieved on this specific interface. For packet sockets, the
+        //address structure is a struct sockaddr_ll (see the man page
+        //for "packet"), but of course bind takes a struct sockaddr.
+        //Here, we can use the sockaddr we got from getifaddrs (which
+        //we could convert to sockaddr_ll if we needed to)
+        if(bind(packet_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
+          perror("bind");
+        }
+      }
 
-// for lo
-if(!strncmp(&(tmp->ifa_name[2]),"lo",2)){
-printf("Creating Socket on interface %s\n",tmp->ifa_name);
+      // for lo
+      if(!strncmp(&(tmp->ifa_name[2]),"lo",2)){
+        printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
-//create a packet socket
-//AF_PACKET makes it a packet socket
-//SOCK_RAW makes it so we get the entire packet
-//could also use SOCK_DGRAM to cut off link layer header
-//ETH_P_ALL indicates we want all (upper layer) protocols
-//we could specify just a specific one
-lo_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+        //create a packet socket
+        //AF_PACKET makes it a packet socket
+        //SOCK_RAW makes it so we get the entire packet
+        //could also use SOCK_DGRAM to cut off link layer header
+        //ETH_P_ALL indicates we want all (upper layer) protocols
+        //we could specify just a specific one
+        lo_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
-if(lo_socket<0){
-perror("socket");
-return 2;
-}
+        if(lo_socket<0){
+          perror("socket");
+          return 2;
+        }
 
-//Bind the socket to the address, so we only get packets
-//recieved on this specific interface. For packet sockets, the
-//address structure is a struct sockaddr_ll (see the man page
-//for "packet"), but of course bind takes a struct sockaddr.
-//Here, we can use the sockaddr we got from getifaddrs (which
-//we could convert to sockaddr_ll if we needed to)
-if(bind(lo_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
-perror("bind");
-}
-}
+        //Bind the socket to the address, so we only get packets
+        //recieved on this specific interface. For packet sockets, the
+        //address structure is a struct sockaddr_ll (see the man page
+        //for "packet"), but of course bind takes a struct sockaddr.
+        //Here, we can use the sockaddr we got from getifaddrs (which
+        //we could convert to sockaddr_ll if we needed to)
+        if(bind(lo_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
+          perror("bind");
+        }
+      }
 
-// eth 0
-if(!strncmp(&(tmp->ifa_name[3]),"eth0",4)){
-printf("Creating Socket on interface %s\n",tmp->ifa_name);
+      // eth 0
+      if(!strncmp(&(tmp->ifa_name[3]),"eth0",4)){
+        printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
-//create a packet socket
-//AF_PACKET makes it a packet socket
-//SOCK_RAW makes it so we get the entire packet
-//could also use SOCK_DGRAM to cut off link layer header
-//ETH_P_ALL indicates we want all (upper layer) protocols
-//we could specify just a specific one
-eth0_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+        //create a packet socket
+        //AF_PACKET makes it a packet socket
+        //SOCK_RAW makes it so we get the entire packet
+        //could also use SOCK_DGRAM to cut off link layer header
+        //ETH_P_ALL indicates we want all (upper layer) protocols
+        //we could specify just a specific one
+        eth0_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
-if(eth0_socket<0){
-perror("socket");
-return 2;
-}
+        if(eth0_socket<0){
+          perror("socket");
+          return 2;
+        }
 
-//Bind the socket to the address, so we only get packets
-//recieved on this specific interface. For packet sockets, the
-//address structure is a struct sockaddr_ll (see the man page
-//for "packet"), but of course bind takes a struct sockaddr.
-//Here, we can use the sockaddr we got from getifaddrs (which
-//we could convert to sockaddr_ll if we needed to)
-if(bind(eth0_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
-perror("bind");
-}
-}
+        //Bind the socket to the address, so we only get packets
+        //recieved on this specific interface. For packet sockets, the
+        //address structure is a struct sockaddr_ll (see the man page
+        //for "packet"), but of course bind takes a struct sockaddr.
+        //Here, we can use the sockaddr we got from getifaddrs (which
+        //we could convert to sockaddr_ll if we needed to)
+        if(bind(eth0_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
+          perror("bind");
+        }
+      }
 
-// eth2
-if(!strncmp(&(tmp->ifa_name[3]),"eth2",4)){
-printf("Creating Socket on interface %s\n",tmp->ifa_name);
+          // eth2
+          if(!strncmp(&(tmp->ifa_name[3]),"eth2",4)){
+          printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
-//create a packet socket
-//AF_PACKET makes it a packet socket
-//SOCK_RAW makes it so we get the entire packet
-//could also use SOCK_DGRAM to cut off link layer header
-//ETH_P_ALL indicates we want all (upper layer) protocols
-//we could specify just a specific one
-eth1_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+          //create a packet socket
+          //AF_PACKET makes it a packet socket
+          //SOCK_RAW makes it so we get the entire packet
+          //could also use SOCK_DGRAM to cut off link layer header
+          //ETH_P_ALL indicates we want all (upper layer) protocols
+          //we could specify just a specific one
+          eth1_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
-if(eth1_socket<0){
-perror("socket");
-return 2;
-}
+          if(eth1_socket<0){
+            perror("socket");
+            return 2;
+          }
 
-//Bind the socket to the address, so we only get packets
-//recieved on this specific interface. For packet sockets, the
-//address structure is a struct sockaddr_ll (see the man page
-//for "packet"), but of course bind takes a struct sockaddr.
-//Here, we can use the sockaddr we got from getifaddrs (which
-//we could convert to sockaddr_ll if we needed to)
-if(bind(eth1_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
-perror("bind");
-}
-}
-}
-printf("Loop number: %d\n",i);
-}
+            //Bind the socket to the address, so we only get packets
+            //recieved on this specific interface. For packet sockets, the
+            //address structure is a struct sockaddr_ll (see the man page
+            //for "packet"), but of course bind takes a struct sockaddr.
+            //Here, we can use the sockaddr we got from getifaddrs (which
+            //we could convert to sockaddr_ll if we needed to)
+            if(bind(eth1_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
+              perror("bind");
+            }
+          }
+        }
+      printf("Loop number: %d\n",i);
+    }
   //
   FD_SET(packet_socket, &sockets);
   FD_SET(lo_socket, &sockets);
