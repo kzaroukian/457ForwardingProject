@@ -52,10 +52,10 @@ int main() {
     u_char mac_addr_len;
     u_char ip_addr_len;
     u_short op;
-    u_char src_mac[6];
-    u_char src_ip[4];
-    u_char dst_mac[6];
-    u_char dst_ip[4];
+    u_short src_mac;
+    u_short src_ip;
+    u_short dst_mac;
+    u_short dst_ip;
   };
 
   // set of sockets
@@ -278,26 +278,10 @@ int main() {
           arp_reply->op = htons(2);
           printf("continuing arp reply, 1st 5 fields established\n");
 
-
-          // sets source mac address
-          int j = 0;
-          int k = 0;
-          // establishes src and dst mac addresses
-          while(j < 6) {
-            arp_reply->src_mac[i] = router_mac_addr[i];
-            arp_reply->dst_mac[i] = arp_request->src_mac[i];
-            j++;
-            printf("continuing arp reply, mac addr\n");
-          }
-
-          while(k < 4){
-            arp_reply->src_ip[i] = arp_request->dst_ip[i];
-            arp_reply->dst_ip[i] = arp_request->src_ip[i];
-            printf("continuing arp reply, ip addr\n");
-            k++;
-
-          }
-          printf("Arp header established\n");
+          memcpy(&(arp_reply->src_mac), router_mac_addr, 6);
+          memcpy(&(arp_reply->dst_mac), &(arp_request->src_mac), 6);
+          memcpy(&(arp_reply->src_ip), &(arp_request->dst_ip), 4);
+          memcpy(&(arp_reply->dst_ip), &(arp_reply->src_ip),4);
 
           int x = send(i, reply_data, 42, 0);
 
