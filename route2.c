@@ -2,6 +2,7 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
 #include <sys/types.h>
@@ -10,6 +11,7 @@
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
 #include <netinet/ip_icmp.h>
+#include <string.h>
 
 /**
  * @Author Kaylin Zaroukian, Runquan(Jerry) Ye, Cody Krueger
@@ -278,11 +280,32 @@ int main() {
 
         }
 	//----------------------------ICMP Part-----------------------------
-        if (ntohs(eth_request->ether_type) == 0x800) {
-          struct icmphdr* icmp_header = (struct icmphdr*)(buf+14+20);
-          memcpy(buf, &(icmp_header -> , 6);
+        if (ntohs(eth_request->ether_type) == 2048 ){
+		
 	
-	  
+	 	//char icmpBuf[1514];
+	 	char *icmpBuf = (char*)malloc(1500 * sizeof(char));
+		uint32_t src[4];
+		uint32_t dst[4];
+
+	  	struct ether_header *etherH = (struct ether_header*)icmpBuf ;
+	  	struct ip *ipH = (struct ip*)(icmpBuf + 14);
+		struct icmphdr* icmpH = (struct icmphdr*)(icmpBuf + 14 + 20);
+
+		printf("Current the source address is %s\n", inet_ntoa(ipH -> ip_src));
+		printf("Current the destination address is %s\n", inet_ntoa(ipH -> ip_dst));
+
+
+		memcpy(src, &(ipH -> ip_src), 4);
+		memcpy(&(ipH -> ip_src), &(ipH -> ip_dst), sizeof(ipH -> ip_src));
+		memcpy(&(ipH -> ip_dst), src, 4);
+
+		printf("--------------------------\n");
+
+		printf("Now the source address is %s\n", inet_ntoa(ipH -> ip_src));
+		printf("Now the destination address is %s\n", inet_ntoa(ipH -> ip_dst));
+
+
 	}
       }
     }
@@ -295,4 +318,4 @@ int main() {
   freeifaddrs(ifaddr);
   //exit
   return 0;
-}
+} 
