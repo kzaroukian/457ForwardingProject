@@ -188,7 +188,7 @@ int main() {
             memcpy(our_mac, router_mac_addr, 6);
 
           } else {
-            memcpy(our_mac, router_mac_addr, 6);
+            memcpy(our_mac, router_mac_addr3, 6);
           }
 
           // populates ethernet header on ARP reply
