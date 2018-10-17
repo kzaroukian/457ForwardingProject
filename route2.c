@@ -39,6 +39,7 @@ int checksumCalculated(char *buffer, size_t len) {
   return ~(sum & 0xFFFF);
 }
 
+
 int main() {
   // packet socket appears to be eth1
   int packet_socket;
