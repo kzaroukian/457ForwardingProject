@@ -46,6 +46,8 @@ int main() {
   int eth0_socket;
   int eth1_socket;
   u_char router_mac_addr[6];
+  u_char router_mac_addr2[6];
+  u_char router_mac_addr3[6];
 
   // set of sockets
   fd_set sockets;
@@ -77,6 +79,7 @@ int main() {
 
         struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
         memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
+        printf("%s\n", r_mac_addr);
 
         packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
@@ -90,27 +93,14 @@ int main() {
         }
       }
 
-      // for lo
-      if(!strncmp(&(tmp->ifa_name[2]),"lo",2)){
-        printf("Creating Socket on interface %s\n",tmp->ifa_name);
-
-        lo_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-
-        if(lo_socket<0){
-          perror("socket");
-          return 2;
-        }
-
-        if(bind(lo_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
-          perror("bind");
-        }
-      }
-
       // eth 0
       if(!strncmp(&(tmp->ifa_name[3]),"eth0",4)){
         printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
         eth0_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+
+        struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
+        memcpy(router_mac_addr2, r_mac_addr->sll_addr, 6);
 
         if(eth0_socket<0){
           perror("socket");
@@ -128,6 +118,9 @@ int main() {
           printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
           eth1_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+
+          struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
+          memcpy(router_mac_addr3, r_mac_addr->sll_addr, 6);
 
           if(eth1_socket<0){
             perror("socket");
@@ -185,9 +178,23 @@ int main() {
           //struct arp_header *arp_reply = (struct arp_header*)(reply_data+14);
           struct ether_arp *arp_reply = (struct ether_arp*)(reply_data+14);
 
+          u_char our_mac[6];
+
+          if(i == eth0_socket) {
+            //our_mac = router_mac_addr2;
+            memcpy(our_mac, router_mac_addr2, 6);
+          }
+          else if(i == eth1_socket) {
+            memcpy(our_mac, router_mac_addr, 6);
+
+          } else {
+            memcpy(our_mac, router_mac_addr, 6);
+          }
+
           // populates ethernet header on ARP reply
           memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
-          memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
+        //  memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
+          memcpy(&(eth_reply->ether_shost), &(our_mac),6);
           memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 6);
           printf("Ethernet Header is set up\n");
 
@@ -199,7 +206,8 @@ int main() {
           arp_reply->arp_op = ntohs(ARPOP_REPLY);
           // this may be wrong but double check
           //arp_reply->ea_hdr.arp_op=ARPOP_REPLY;
-          memcpy(&(arp_reply->arp_sha), router_mac_addr, 6);
+
+          memcpy(&(arp_reply->arp_sha), our_mac, 6);
           memcpy(&(arp_reply->arp_spa), &(arp_request->arp_tpa), 4);
           memcpy(&(arp_reply->arp_tha), &(arp_request->arp_sha), 6);
           memcpy(&(arp_reply->arp_tpa), &(arp_request->arp_spa), 4);
@@ -231,14 +239,12 @@ int main() {
 
           struct ether_header *eth_reply = (struct ether_header*)reply_data;
           struct iphdr *ip_reply = (struct iphdr*)(reply_data+sizeof(struct ether_header));
-          // struct icmphdr *icmp_reply = (struct icmphdr*)(reply_data + 14+20);
-          u_short ip2_len = ip_reply->ihl * 4;
           struct icmp_header *icmp_reply = (struct icmp_header*)(reply_data + 14+20);
 
           printf("Reply header \n");
 
           //populates the ethernet header
-          memcpy(&(eth_reply),&(eth_request),20);
+          //memcpy(&(eth_reply),&(eth_request),20);
           memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
           memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
           memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 2);
