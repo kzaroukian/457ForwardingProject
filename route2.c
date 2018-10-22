@@ -47,11 +47,18 @@ int main() {
   int lo_socket;
   int eth0_socket;
   int eth1_socket;
-  u_char router_mac_addr[6];
-  u_char router_mac_addr2[6];
-  u_char router_mac_addr3[6];
+
+  struct interface_mac_addresses {
+    u_char router_mac_addr[10][6];
+    char int_name[10][10];
+    int total_sockets;
+    u_int file_descriptors[10];
+  };
+
+  // queue of possible packets
+  char packet_queue[15][1500];
   // inital val
-  FILE *file = fopen("r1-table.txt","r");
+ FILE *file = fopen("r1-table.txt","r");
 
   // set of sockets
   fd_set sockets;
@@ -71,21 +78,22 @@ int main() {
 
   struct routingTable{
     struct in_addr first_ip[10];
-    char prefix[10][2];
-    // u_char prefix[2];
-    //u_char prefix[2];
-    // may not work may need to be left blank ?
+    //char prefix[10][2];
+    int prefix[10];
+    int prefix_bytes[10];
     struct in_addr second_ip[10];
     char name[10][10];
     u_int8_t table_length;
 	};
 
   struct routingTable *table = (struct routingTable*)malloc(sizeof(struct routingTable));
+  struct interface_mac_addresses *mac_addresses = (struct interface_mac_addresses*)malloc(sizeof(struct interface_mac_addresses));
 
   //have the list, loop over the list
   int i = 0;
   for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){
     i++;
+    mac_addresses->total_sockets=i;
 
 
     if(strncmp(tmp->ifa_name, "r1",2) == 0) {
@@ -109,10 +117,17 @@ int main() {
         printf("Creating Socket on interface %s\n",tmp->ifa_name);
 
         struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
-        memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
-        printf("%s\n", r_mac_addr);
+        //memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
+        memcpy(mac_addresses->router_mac_addr[i],r_mac_addr->sll_addr,6);
+        // mac_addresses->int_name[i] = "eth-1";
+        memcpy(mac_addresses->int_name[i], "eth-1", 10);
+        //memcpy(mac_addresses->int_name[0], tmp->if)
+
+        //printf("%s\n", r_mac_addr);
 
         packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+        printf("PCKT SOCKET %d\n", packet_socket);
+        mac_addresses->file_descriptors[i] = packet_socket;
 
         if(packet_socket<0){
           perror("socket");
@@ -131,7 +146,15 @@ int main() {
         eth0_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
         struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
-        memcpy(router_mac_addr2, r_mac_addr->sll_addr, 6);
+        //memcpy(router_mac_addr2, r_mac_addr->sll_addr, 6);
+        //mac_addresses->router_mac_addr[1] = r_mac_addr->sll_addr;
+        memcpy(mac_addresses->router_mac_addr[i],r_mac_addr->sll_addr,6);
+        //mac_addresses->int_name[i] = "eth-0";
+        memcpy(mac_addresses->int_name[i],"eth-0",10);
+        printf("ETH0 SOCKET %d\n", eth0_socket);
+        mac_addresses->file_descriptors[i] = eth0_socket;
+
+
 
         if(eth0_socket<0){
           perror("socket");
@@ -151,7 +174,12 @@ int main() {
           eth1_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
 
           struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
-          memcpy(router_mac_addr3, r_mac_addr->sll_addr, 6);
+          //memcpy(router_mac_addr3, r_mac_addr->sll_addr, 6);
+          //mac_addresses->router_mac_addr[2] = r_mac_addr->sll_addr;
+          memcpy(mac_addresses->router_mac_addr[i],r_mac_addr->sll_addr,6);
+          //mac_addresses->int_name[i] = "eth-2";
+          memcpy(mac_addresses->int_name[i],"eth-2",10);
+          mac_addresses->file_descriptors[i] = eth1_socket;
 
           if(eth1_socket<0){
             perror("socket");
@@ -233,12 +261,15 @@ int main() {
      }
      printf("no\n");
 
-     memcpy(table->prefix[k], prefix[k], 8);
+     //memcpy(table->prefix[k], prefix[k], 8);
+     table->prefix[k] = atoi(prefix[k]);
+     table->prefix_bytes[k] = (-1) << 32 - atoi(prefix[k]);
      memcpy(table->name[k], interface[k],8);
 
      printf("FIRST IP %s\n", inet_ntoa(table->first_ip[k]));
      printf("SECOND IP %s\n", inet_ntoa(table->second_ip[k]));
-     printf("PREFIX %s\n", table->prefix[k]);
+     printf("PREFIX %d\n", table->prefix[k]);
+     printf("PREFIX BYTES %d\n", table->prefix_bytes[k]);
      printf("NAME %s\n", table->name[k]);
   }
 
@@ -257,6 +288,18 @@ int main() {
     int n = 0;
     for(i=0;i<FD_SETSIZE;i++) {
       if(FD_ISSET(i,&tmp_set)) {
+        printf("FDISSET VAL %d\n", FD_ISSET(i,&tmp_set));
+        int s = 0;
+        u_char our_mac[6];
+        // just as cautionary measure
+        memcpy(our_mac,mac_addresses->router_mac_addr[0],6);
+        // gets correct mac for our socket
+        for(s=0;s<mac_addresses->total_sockets;s++) {
+          if (i == mac_addresses->file_descriptors[s]) {
+            memcpy(our_mac,mac_addresses->router_mac_addr[s],6);
+          }
+        }
+
         len = sizeof(tmp);
         n = recvfrom(i, buf, 1500,0,(struct sockaddr*)&recvaddr, &recvaddrlen);
         if(recvaddr.sll_pkttype==PACKET_OUTGOING)
@@ -279,19 +322,6 @@ int main() {
           struct ether_header *eth_reply = (struct ether_header*)reply_data;
           //struct arp_header *arp_reply = (struct arp_header*)(reply_data+14);
           struct ether_arp *arp_reply = (struct ether_arp*)(reply_data+14);
-
-          u_char our_mac[6];
-
-          if(i == eth0_socket) {
-            //our_mac = router_mac_addr2;
-            memcpy(our_mac, router_mac_addr2, 6);
-          }
-          else if(i == eth1_socket) {
-            memcpy(our_mac, router_mac_addr, 6);
-
-          } else {
-            memcpy(our_mac, router_mac_addr3, 6);
-          }
 
           // populates ethernet header on ARP reply
           memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
@@ -330,52 +360,115 @@ int main() {
           printf("ICMP Request\n");
           struct iphdr *ip_request = (struct iphdr*)(buf+sizeof(struct ether_header));
           u_short ip_len = ip_request->ihl * 4;
-          // struct icmphdr *icmp_request = (struct icmphdr*)(buf + 34);
-          struct icmp_header *icmp_request = (struct icmp_header*)(buf + 14 + ip_len);
-          printf("Request Header created\n");
-          printf("%d\n", sizeof(struct icmphdr));
+          if (ip_request->protocol==1) {
+            // struct icmphdr *icmp_request = (struct icmphdr*)(buf + 34);
+            struct icmp_header *icmp_request = (struct icmp_header*)(buf + 14 + ip_len);
+            printf("Request Header created\n");
+            printf("%d\n", sizeof(struct icmphdr));
 
-          // replies for ICMP
-          char reply_data[1514];
-          memcpy(reply_data, buf, 1514);
+            // replies for ICMP
+            char reply_data[1514];
+            memcpy(reply_data, buf, 1514);
 
-          struct ether_header *eth_reply = (struct ether_header*)reply_data;
-          struct iphdr *ip_reply = (struct iphdr*)(reply_data+sizeof(struct ether_header));
-          struct icmp_header *icmp_reply = (struct icmp_header*)(reply_data + 14+20);
+            struct ether_header *eth_reply = (struct ether_header*)reply_data;
+            struct iphdr *ip_reply = (struct iphdr*)(reply_data+sizeof(struct ether_header));
+            struct icmp_header *icmp_reply = (struct icmp_header*)(reply_data + 14+20);
 
-          printf("Reply header \n");
+            printf("Reply header \n");
 
-          //populates the ethernet header
-          //memcpy(&(eth_reply),&(eth_request),20);
-          memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
-          memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
-          memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 2);
-          printf("Eth header\n");
+            //populates the ethernet header
+            //memcpy(&(eth_reply),&(eth_request),20);
+            memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
+            memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
+            memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 2);
+            printf("Eth header\n");
 
-          // populates the ip header
-          memcpy(&(ip_reply->saddr), &(ip_request->daddr), 4);
-          memcpy(&(ip_reply->daddr), &(ip_request->saddr), 4);
-          printf("IP header\n");
+            // populates the ip header
+            memcpy(&(ip_reply->saddr), &(ip_request->daddr), 4);
+            memcpy(&(ip_reply->daddr), &(ip_request->saddr), 4);
+            printf("IP header\n");
 
-          // populates the icmp headers
-          icmp_reply->type = 0;
-          icmp_reply->code = 0;
-          memcpy(&(icmp_reply->checksum), &(ip_request->check), 2);
-          printf("ICMP hdr\n");
+            // populates the icmp headers
+            icmp_reply->type = 0;
+            icmp_reply->code = 0;
+            memcpy(&(icmp_reply->checksum), &(ip_request->check), 2);
+            printf("ICMP hdr\n");
 
-          int x = send(i, reply_data, 98, 0);
+            int x = send(i, reply_data, 98, 0);
 
-          if (x < 0) {
-            printf("ERROR sending ICMP ECHO Reply!\n");
-            perror("Error sending ICMP ECHO reply");
-            continue;
-          }
+            if (x < 0) {
+              printf("ERROR sending ICMP ECHO Reply!\n");
+              perror("Error sending ICMP ECHO reply");
+              continue;
+            }
 
-          printf("ICMP Echo Reply packet sent\n");
+            printf("ICMP Echo Reply packet sent\n");
+           } //else {
+          //   // we are receiving an IPv4 packet
+          //   // we will need to look at dst
+          //
+          //   // here we will need to do a routing table look up to see where we are sending to
+          //   int x = 0;
+          //   char interface_name[10];
+          //   int index = 0;
+          //
+          //   // we will need the ip addresses to send our arp request
+          //   for(; x < table->table_length; x++) {
+          //     if((ip_request->daddr && table[x]->prefix_bytes) == table->ip1[x].saddr) {
+          //       index = x;
+          //       interface_name = table->name;
+          //     }
+          //
+          //   }
+          //
+          //   // assuming we have a match we will now send an arp request
+          //   char reply_data[1500];
+          //
+          //   // we don't want to do this
+          //   //memcpy(reply_data,buf,1500);
+          //
+          //   // eth header here:
+          //   struct ether_header *eth_arp_request = (struct ether_header*)reply_data;
+          //   //struct arp_header *arp_reply = (struct arp_header*)(reply_data+14);
+          //   struct ether_arp *arp_request = (struct ether_arp*)(reply_data+14);
+          //
+          //   // get our mac address
+          //   int a = 0;
+          //   for(;a<10;a++) {
+          //     if ()
+          //   }
+          //
+          //   // this is going to change to broadcast
+          //   memcpy(&(eth_arp_request->ether_dhost),&(eth_request->ether_shost),6);
+          // //  memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
+          //   memcpy(&(eth_arp_request->ether_shost), &(our_mac),6);
+          //   memcpy(&(eth_arp_request->ether_type), ETHERTYPE_ARP, 6);
+          //   printf("Ethernet Header is set up\n");
+          //
+          //   // populates ARP header on ARP reply
+          //   printf("Starting arp_request\n");
+          //
+          //   memcpy(&(arp_reply->ea_hdr), &(arp_request->ea_hdr), sizeof(arp_request->ea_hdr));
+          //   //memcpy(&(arp_reply->arp_op), ARPOP_REPLY, sizeof(arp_request->ea_hdr.ea_hdr));
+          //   arp_reply->arp_op = ntohs(ARPOP_REQUEST);
+          //   // this may be wrong but double check
+          //   //arp_reply->ea_hdr.arp_op=ARPOP_REPLY;
+          //
+          //   memcpy(&(arp_reply->arp_sha), our_mac, 6);
+          //   memcpy(&(arp_reply->arp_spa), &(arp_request->arp_tpa), 4);
+          //   memcpy(&(arp_reply->arp_tha), &(arp_request->arp_sha), 6);
+          //   memcpy(&(arp_reply->arp_tpa), &(arp_request->arp_spa), 4);
+          //   // arp header here:
+          //
+          //   // sending request here:
+          //
+        //  }
+
 
         }
 
       }
+      //printf("For Loop #%d\n", i);
     }
     printf("Exiting for loop\n");
     FD_CLR(i,&sockets);
