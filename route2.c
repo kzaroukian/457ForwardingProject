@@ -10,6 +10,8 @@
 #include <netinet/if_ether.h>
 #include <arpa/inet.h>
 #include <netinet/ip_icmp.h>
+#include <stdlib.h>
+#include <string.h>
 
 /**
  * @Author Kaylin Zaroukian, Jerry, Cody Krueger
@@ -39,7 +41,6 @@ int checksumCalculated(char *buffer, size_t len) {
   return ~(sum & 0xFFFF);
 }
 
-
 int main() {
   // packet socket appears to be eth1
   int packet_socket;
@@ -49,6 +50,8 @@ int main() {
   u_char router_mac_addr[6];
   u_char router_mac_addr2[6];
   u_char router_mac_addr3[6];
+  // inital val
+  FILE *file = fopen("r1-table.txt","r");
 
   // set of sockets
   fd_set sockets;
@@ -65,10 +68,37 @@ int main() {
     perror("getifaddrs");
     return 1;
   }
+
+  struct routingTable{
+    struct in_addr first_ip[10];
+    char prefix[10][2];
+    // u_char prefix[2];
+    //u_char prefix[2];
+    // may not work may need to be left blank ?
+    struct in_addr second_ip[10];
+    char name[10][10];
+    u_int8_t table_length;
+	};
+
+  struct routingTable *table = (struct routingTable*)malloc(sizeof(struct routingTable));
+
   //have the list, loop over the list
   int i = 0;
   for(tmp = ifaddr; tmp!=NULL; tmp=tmp->ifa_next){
     i++;
+
+
+    if(strncmp(tmp->ifa_name, "r1",2) == 0) {
+      printf("Router ONE\n");
+      file = fopen("r1-table.txt", "r");
+      table->table_length = 4;
+    }
+
+    if(strncmp(tmp->ifa_name, "r2",2) == 0) {
+      printf("Router TWO\n");
+      file = fopen("r2-table.txt", "r");
+      table->table_length = 5;
+    }
 
     if(tmp->ifa_addr->sa_family==AF_PACKET){
       printf("Interface: %s\n",tmp->ifa_name);
@@ -140,6 +170,77 @@ int main() {
   FD_SET(lo_socket, &sockets);
   FD_SET(eth0_socket, &sockets);
   FD_SET(eth1_socket, &sockets);
+
+  int j = 0;
+  size_t length = 0;
+  ssize_t readFile;
+  char *fileBuffer = NULL;
+  char ip1[20][15];
+  char ip2[20][15];
+  char prefix[20][10];
+  char interface[20][10];
+  if (file < 0) {
+    printf("ERROR\n");
+  }
+
+
+  while(((readFile = getline(&fileBuffer, &length, file)) != -1)){
+    printf("Entered loop\n");
+    printf("Return line of length: %zu: \n", readFile);
+
+    // length of line with 2nd col populated
+    if (readFile == 29) {
+
+      printf("Null\n");
+      memcpy(ip1[j],fileBuffer, 8);
+      memcpy(prefix[j], fileBuffer+9, 2);
+      memcpy(ip2[j], fileBuffer+11, 9);
+      memcpy(interface[j], fileBuffer+21, 7);
+
+    } else {
+      printf("Not null\n");
+
+      memcpy(ip1[j],fileBuffer, 8);
+      memcpy(prefix[j], fileBuffer+9, 2);
+      memcpy(ip2[j], fileBuffer+12, 1);
+      memcpy(interface[j], fileBuffer+14, 7);
+
+    }
+    printf("%s\n",fileBuffer);
+    printf("IP1 %s\n", ip1[j]);
+    printf("PRE %s\n", prefix[j]);
+    printf("IP2 %s\n", ip2[j]);
+    printf("INT %s\n", interface[j]);
+    j++;
+    length = j;
+  }
+  free(fileBuffer);
+  fclose(file);
+
+  //table->table_length = length;
+  int k = 0;
+  for (k = 0; k < table->table_length-1; k++) {
+     // char test[strlen(ip1[k])];
+     // memcpy(test, ip1[k], strlen(ip1[k]));
+     inet_aton(ip1[k], &table->first_ip[k]);
+     printf("ATON %lu\n", table->first_ip[k]);
+     printf("sizeof %d\n", sizeof(ip2[k]));
+     if (strncmp(ip2[k], "-", 1) != 0) {
+       printf("yes\n");
+       inet_aton(ip2[k],&table->second_ip[k]);
+     } else {
+       inet_aton("0.0.0.0", &table->second_ip[k]);
+     }
+     printf("no\n");
+
+     memcpy(table->prefix[k], prefix[k], 8);
+     memcpy(table->name[k], interface[k],8);
+
+     printf("FIRST IP %s\n", inet_ntoa(table->first_ip[k]));
+     printf("SECOND IP %s\n", inet_ntoa(table->second_ip[k]));
+     printf("PREFIX %s\n", table->prefix[k]);
+     printf("NAME %s\n", table->name[k]);
+  }
 
   printf("Ready to recieve now\n");
   while(1){
