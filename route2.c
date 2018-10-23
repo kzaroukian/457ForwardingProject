@@ -323,6 +323,21 @@ int main() {
      printf("NAME %s\n", table->name[k]);
   }
 
+
+  // struct interface_mac_addresses {
+  //   u_char router_mac_addr[10][6];
+  //   struct in_addr router_ip_addr[10];
+  //   char int_name[10][10];
+  //   int total_sockets;
+  //   u_int file_descriptors[10];
+  // };
+  int y = 0;
+  for(; y < mac_addresses->total_sockets; y++) {
+    printf("Name; %s\n", mac_addresses->int_name[y]);
+    printf("Mac: %s\n", mac_addresses->router_mac_addr[y]);
+    printf("IP: %s\n", inet_ntoa(*((struct in_addr *)&(mac_addresses->router_ip_addr[y].s_addr))));
+  }
+
   printf("Ready to recieve now\n");
   while(1){
     printf("Entered while loop\n");
@@ -498,6 +513,11 @@ int main() {
                  printf("sweet 16\n");
                  val = 0xFFFF0000;
                }
+               if(table->prefix[x] == 16) {
+                 memcpy(interface_name, "rx-eth0", 10);
+                 index = x;
+               }
+
                if(!((ip_request->daddr ^ table->first_ip[x].s_addr) & htonl(val))){
                  index = x;
                  //interface_name = table->name;
@@ -508,6 +528,8 @@ int main() {
 
              }
              printf("Passed for loops\n");
+
+
 
              int u = 0;
              int var = 0;
@@ -568,19 +590,21 @@ int main() {
              //arp_reply->ea_hdr.arp_op=ARPOP_REPLY;
 
              memcpy(&(arp_request->arp_sha), our_mac, 6);
-             if (table->prefix[index] == 24) {
-               memcpy(&(arp_request->arp_spa), &(mac_addresses->router_ip_addr[var].s_addr), 4);
-             } else {
-               int p = 0;
-               int answer = 0;
-               for(; p < table->table_length; p++) {
-                 if (table->prefix[index] == 16) {
-                   answer = p;
-                 }
-               }
-               // only will work for part 2
-               memcpy(&(arp_request->arp_spa), &(table->second_ip[answer].s_addr), 4);
-             }
+             memcpy(&(arp_request->arp_spa), &(mac_addresses->router_ip_addr[var].s_addr), 4);
+            // if (table->prefix[index] == 24) {
+
+             // } else {
+             //   int p = 0;
+             //   int answer = 0;
+             //   for(; p < table->table_length; p++) {
+             //     if (table->prefix[index] == 16) {
+             //       answer = p;
+             //       printf("Second IP: %s\n",inet_ntoa(*(struct in_addr*)&table->second_ip[answer].s_addr));
+             //     }
+             //   }
+             //   // only will work for part 2
+             //   memcpy(&(arp_request->arp_spa), &table->second_ip[answer].s_addr, 4);
+             // }
              memcpy(&(arp_request->arp_tha), broadcast_addr, 6);
              memcpy(&(arp_request->arp_tpa), &(ip_request->daddr), 4);
 
