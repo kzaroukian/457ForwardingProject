@@ -47,6 +47,7 @@ int main() {
   int lo_socket;
   int eth0_socket;
   int eth1_socket;
+  int eth3_socket;
   int packet_num = 0;
 
   struct interface_mac_addresses {
@@ -211,6 +212,31 @@ int main() {
               perror("bind");
             }
           }
+
+          // for eth3
+          //create a packet socket on interface r?-eth3
+          if(!strncmp(&(tmp->ifa_name[3]),"eth3",4)){
+            printf("Creating Socket on interface %s\n",tmp->ifa_name);
+
+            struct sockaddr_ll *r_mac_addr = (struct sockaddr_ll *)tmp->ifa_addr;
+            //memcpy(router_mac_addr, r_mac_addr->sll_addr, 6);
+            memcpy(mac_addresses->router_mac_addr[i],r_mac_addr->sll_addr,6);
+            // mac_addresses->int_name[i] = "eth-1";
+            memcpy(mac_addresses->int_name[i], "eth3", 10);
+
+            eth3_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+            printf("PCKT SOCKET %d\n", eth3_socket);
+            mac_addresses->file_descriptors[i] = packet_socket;
+
+            if(eth3_socket<0){
+              perror("socket");
+              return 2;
+            }
+
+            if(bind(eth3_socket,tmp->ifa_addr,sizeof(struct sockaddr_ll))==-1){
+              perror("bind");
+            }
+          }
         }
       printf("Loop number: %d\n",i);
 
@@ -221,6 +247,7 @@ int main() {
   FD_SET(lo_socket, &sockets);
   FD_SET(eth0_socket, &sockets);
   FD_SET(eth1_socket, &sockets);
+  FD_SET(eth3_socket, &sockets);
 
   int j = 0;
   size_t length = 0;
@@ -468,6 +495,7 @@ int main() {
                //int val_16 = 0xFFFF0000;
                int val = 0xFFFFFF00;
                if(table->prefix[x] == 16) {
+                 printf("sweet 16\n");
                  val = 0xFFFF0000;
                }
                if(!((ip_request->daddr ^ table->first_ip[x].s_addr) & htonl(val))){
@@ -486,7 +514,7 @@ int main() {
              if (strlen(interface_name) > 1) {
                for(; u < mac_addresses->total_sockets; u++) {
                  if (strncmp(mac_addresses->int_name[u], interface_name+3, 3) == 0) {
-                   printf("MATCH MAC ADDR\n");
+                   //printf("MATCH MAC ADDR\n");
                    var = u;
                  }
                }
@@ -540,7 +568,19 @@ int main() {
              //arp_reply->ea_hdr.arp_op=ARPOP_REPLY;
 
              memcpy(&(arp_request->arp_sha), our_mac, 6);
-             memcpy(&(arp_request->arp_spa), &(mac_addresses->router_ip_addr[var].s_addr), 4);
+             if (table->prefix[index] == 24) {
+               memcpy(&(arp_request->arp_spa), &(mac_addresses->router_ip_addr[var].s_addr), 4);
+             } else {
+               int p = 0;
+               int answer = 0;
+               for(; p < table->table_length; p++) {
+                 if (table->prefix[index] == 16) {
+                   answer = p;
+                 }
+               }
+               // only will work for part 2
+               memcpy(&(arp_request->arp_spa), &(table->second_ip[answer].s_addr), 4);
+             }
              memcpy(&(arp_request->arp_tha), broadcast_addr, 6);
              memcpy(&(arp_request->arp_tpa), &(ip_request->daddr), 4);
 
