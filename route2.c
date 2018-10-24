@@ -100,13 +100,13 @@ int main() {
 
 
     if(strncmp(tmp->ifa_name, "r1",2) == 0) {
-      printf("Router ONE\n");
+      //printf("Router ONE\n");
       file = fopen("r1-table.txt", "r");
       table->table_length = 4;
     }
 
     if(strncmp(tmp->ifa_name, "r2",2) == 0) {
-      printf("Router TWO\n");
+      //printf("Router TWO\n");
       file = fopen("r2-table.txt", "r");
       table->table_length = 5;
     }
@@ -114,14 +114,14 @@ int main() {
     if (tmp->ifa_addr->sa_family==AF_INET){
       struct sockaddr_in *r_ip_addr = (struct sockaddr_in *)tmp->ifa_addr;
       mac_addresses->router_ip_addr[r].s_addr = r_ip_addr->sin_addr.s_addr;
-      printf("IP From struct %lu\n", r_ip_addr->sin_addr.s_addr);
-      printf("actual IP %s\n", inet_ntoa(r_ip_addr->sin_addr));
+      //printf("IP From struct %lu\n", r_ip_addr->sin_addr.s_addr);
+      //printf("actual IP %s\n", inet_ntoa(r_ip_addr->sin_addr));
       r++;
 
     }
 
     if(tmp->ifa_addr->sa_family==AF_PACKET){
-      printf("Interface: %s\n",tmp->ifa_name);
+      //printf("Interface: %s\n",tmp->ifa_name);
 
       // for eth1
       //create a packet socket on interface r?-eth1
@@ -142,7 +142,7 @@ int main() {
         //printf("%s\n", r_mac_addr);
 
         packet_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-        printf("PCKT SOCKET %d\n", packet_socket);
+        //printf("PCKT SOCKET %d\n", packet_socket);
         mac_addresses->file_descriptors[i] = packet_socket;
 
         if(packet_socket<0){
@@ -167,7 +167,7 @@ int main() {
         memcpy(mac_addresses->router_mac_addr[i],r_mac_addr->sll_addr,6);
         //mac_addresses->int_name[i] = "eth-0";
         memcpy(mac_addresses->int_name[i],"eth0",10);
-        printf("ETH0 SOCKET %d\n", eth0_socket);
+        //printf("ETH0 SOCKET %d\n", eth0_socket);
         mac_addresses->file_descriptors[i] = eth0_socket;
       //  memcpy(mac_addresses->router_ip_addr[i], tmp->ifa_addr.sa_data, 4);
       // struct sockaddr_in *r_ip_addr = (struct sockaddr_in *)tmp->ifa_addr;
@@ -225,7 +225,7 @@ int main() {
             memcpy(mac_addresses->int_name[i], "eth3", 10);
 
             eth3_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-            printf("PCKT SOCKET %d\n", eth3_socket);
+            //printf("PCKT SOCKET %d\n", eth3_socket);
             mac_addresses->file_descriptors[i] = packet_socket;
 
             if(eth3_socket<0){
@@ -238,7 +238,7 @@ int main() {
             }
           }
         }
-      printf("Loop number: %d\n",i);
+      //printf("Loop number: %d\n",i);
 
       i++;
     }
@@ -263,20 +263,20 @@ int main() {
 
 
   while(((readFile = getline(&fileBuffer, &length, file)) != -1)){
-    printf("Entered loop\n");
-    printf("Return line of length: %zu: \n", readFile);
+    // printf("Entered loop\n");
+    // printf("Return line of length: %zu: \n", readFile);
 
     // length of line with 2nd col populated
     if (readFile == 29) {
 
-      printf("Null\n");
+      //printf("Null\n");
       memcpy(ip1[j],fileBuffer, 8);
       memcpy(prefix[j], fileBuffer+9, 2);
       memcpy(ip2[j], fileBuffer+11, 9);
       memcpy(interface[j], fileBuffer+21, 7);
 
     } else {
-      printf("Not null\n");
+      //printf("Not null\n");
 
       memcpy(ip1[j],fileBuffer, 8);
       memcpy(prefix[j], fileBuffer+9, 2);
@@ -284,11 +284,11 @@ int main() {
       memcpy(interface[j], fileBuffer+14, 7);
 
     }
-    printf("%s\n",fileBuffer);
-    printf("IP1 %s\n", ip1[j]);
-    printf("PRE %s\n", prefix[j]);
-    printf("IP2 %s\n", ip2[j]);
-    printf("INT %s\n", interface[j]);
+    // printf("%s\n",fileBuffer);
+    // printf("IP1 %s\n", ip1[j]);
+    // printf("PRE %s\n", prefix[j]);
+    // printf("IP2 %s\n", ip2[j]);
+    // printf("INT %s\n", interface[j]);
     j++;
     length = j;
   }
@@ -301,26 +301,26 @@ int main() {
      // char test[strlen(ip1[k])];
      // memcpy(test, ip1[k], strlen(ip1[k]));
      inet_aton(ip1[k], &table->first_ip[k]);
-     printf("ATON %lu\n", table->first_ip[k]);
-     printf("sizeof %d\n", sizeof(ip2[k]));
+    // printf("ATON %lu\n", table->first_ip[k]);
+     //printf("sizeof %d\n", sizeof(ip2[k]));
      if (strncmp(ip2[k], "-", 1) != 0) {
-       printf("yes\n");
+      // printf("yes\n");
        inet_aton(ip2[k],&table->second_ip[k]);
      } else {
        inet_aton("0.0.0.0", &table->second_ip[k]);
      }
-     printf("no\n");
+    // printf("no\n");
 
      //memcpy(table->prefix[k], prefix[k], 8);
      table->prefix[k] = atoi(prefix[k]);
      table->prefix_bytes[k] = (-1) << 32 - atoi(prefix[k]);
      memcpy(table->name[k], interface[k],8);
 
-     printf("FIRST IP %s\n", inet_ntoa(table->first_ip[k]));
-     printf("SECOND IP %s\n", inet_ntoa(table->second_ip[k]));
-     printf("PREFIX %d\n", table->prefix[k]);
-     printf("PREFIX BYTES %d\n", table->prefix_bytes[k]);
-     printf("NAME %s\n", table->name[k]);
+     // printf("FIRST IP %s\n", inet_ntoa(table->first_ip[k]));
+     // printf("SECOND IP %s\n", inet_ntoa(table->second_ip[k]));
+     // printf("PREFIX %d\n", table->prefix[k]);
+     // printf("PREFIX BYTES %d\n", table->prefix_bytes[k]);
+     // printf("NAME %s\n", table->name[k]);
   }
 
 
@@ -333,14 +333,15 @@ int main() {
   // };
   int y = 0;
   for(; y < mac_addresses->total_sockets; y++) {
+    printf("Entry #: %d\n",y);
     printf("Name; %s\n", mac_addresses->int_name[y]);
     printf("Mac: %s\n", mac_addresses->router_mac_addr[y]);
     printf("IP: %s\n", inet_ntoa(*((struct in_addr *)&(mac_addresses->router_ip_addr[y].s_addr))));
   }
 
-  printf("Ready to recieve now\n");
+  //("Ready to recieve now\n");
   while(1){
-    printf("Entered while loop\n");
+    //printf("Entered while loop\n");
     fd_set tmp_set=sockets;
     select(FD_SETSIZE,&tmp_set,NULL,NULL,NULL);
 
@@ -357,7 +358,7 @@ int main() {
         if (packet_num >= 15) {
           packet_num = 0;
         }
-        printf("FDISSET VAL %d\n", FD_ISSET(i,&tmp_set));
+        //printf("FDISSET VAL %d\n", FD_ISSET(i,&tmp_set));
         int s = 0;
         int num = 0;
         u_char our_mac[6];
@@ -371,20 +372,23 @@ int main() {
           }
         }
 
-        printf("socket num %d\n", num);
-        printf("OUR socket %s\n", mac_addresses->int_name[num]);
+        // printf("socket num %d\n", num);
+        // printf("OUR socket %s\n", mac_addresses->int_name[num]);
 
         len = sizeof(tmp);
+
         n = recvfrom(i, buf, 1500,0,(struct sockaddr*)&recvaddr, &recvaddrlen);
+
         if(recvaddr.sll_pkttype==PACKET_OUTGOING)
           continue;
         //start processing all others
         printf("Got a %d byte packet\n", n);
         struct ether_header *eth_request  = (struct ether_header*)buf;
-        printf("Ether type: %d\n", ntohs(eth_request->ether_type));
+        printf("Ether type: %x\n", ntohs(eth_request->ether_type));
 
         // checks if packet is arp
-        if (ntohs(eth_request->ether_type) == ETH_P_ARP) {
+        if (ntohs(eth_request->ether_type) == ETHERTYPE_ARP) {
+          printf("\n \n \n");
           printf("ARP packet\n");
 
           //struct arp_header *arp_request = (struct arp_header*)(buf+14);
@@ -402,16 +406,21 @@ int main() {
             memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
           //  memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
             memcpy(&(eth_reply->ether_shost), &(our_mac),6);
-            printf("%s\n",eth_request->ether_shost);
+            //printf("%s\n",eth_request->ether_shost);
             memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 6);
-            printf("Ethernet Header is set up\n");
+          //  printf("Ethernet Header is set up\n");
 
             // populates ARP header on ARP reply
-            printf("Starting arp_reply\n");
+            //printf("Starting arp_reply\n");
 
             memcpy(&(arp_reply->ea_hdr), &(arp_request->ea_hdr), sizeof(arp_request->ea_hdr));
             //memcpy(&(arp_reply->arp_op), ARPOP_REPLY, sizeof(arp_request->ea_hdr.ea_hdr));
             arp_reply->arp_op = ntohs(ARPOP_REPLY);
+            arp_request->arp_hrd = ntohs(1);
+            arp_request->arp_pro = ntohs(0x800);
+            arp_request->arp_hln = 6;
+            arp_request->arp_pln = 4;
+
             // this may be wrong but double check
             //arp_reply->ea_hdr.arp_op=ARPOP_REPLY;
 
@@ -432,6 +441,9 @@ int main() {
           } else if (arp_request->arp_op == ntohs(ARPOP_REPLY)) {
             // we are forwarding the packet now
 
+            // here we will get data from arp reply
+
+
           }
 
 
@@ -439,18 +451,19 @@ int main() {
         }
         if (ntohs(eth_request->ether_type) == ETHERTYPE_IP){
           // header for icmp request
+          // print
           printf("ICMP Request\n");
           struct iphdr *ip_request = (struct iphdr*)(buf+sizeof(struct ether_header));
           u_short ip_len = ip_request->ihl * 4;
-          printf("Protocol # %d\n", ip_request->protocol);
+          //printf("Protocol # %d\n", ip_request->protocol);
           if (ip_request->protocol==1 && ip_request->daddr == mac_addresses->router_ip_addr[num].s_addr) {
-            printf("IP header");
+            //printf("IP header");
             // struct icmphdr *icmp_request = (struct icmphdr*)(buf + 34);
             struct icmp_header *icmp_request = (struct icmp_header*)(buf + 14 + ip_len);
-            printf("Request Header created\n");
-            printf("%d\n", sizeof(struct icmphdr));
+            //printf("Request Header created\n");
+            //printf("%d\n", sizeof(struct icmphdr));
 
-            printf("IPCMP header");
+          //  printf("IPCMP header");
 
             // replies for ICMP
             char reply_data[1514];
@@ -462,25 +475,25 @@ int main() {
 
             // means ICMP ECHO for our router
 
-            printf("Reply header \n");
+          //  printf("Reply header \n");
 
             //populates the ethernet header
             //memcpy(&(eth_reply),&(eth_request),20);
             memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
             memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
             memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 2);
-            printf("Eth header\n");
+            //printf("Eth header\n");
 
             // populates the ip header
             memcpy(&(ip_reply->saddr), &(ip_request->daddr), 4);
             memcpy(&(ip_reply->daddr), &(ip_request->saddr), 4);
-            printf("IP header\n");
+            //printf("IP header\n");
 
             // populates the icmp headers
             icmp_reply->type = 0;
             icmp_reply->code = 0;
             memcpy(&(icmp_reply->checksum), &(ip_request->check), 2);
-            printf("ICMP hdr\n");
+            //printf("ICMP hdr\n");
 
             int x = send(i, reply_data, 98, 0);
 
@@ -500,28 +513,33 @@ int main() {
              // here we will need to do a routing table look up to see where we are sending to
              int x = 0;
              char interface_name[10];
-             int index = 0;
+             int index = -1;
+             int socket = 0;
+             struct in_addr *ip_to_send = (struct in_addr*)malloc(sizeof(struct in_addr));
 
              // we will need the ip addresses to send our arp request
              for(; x < table->table_length; x++) {
-               printf("IP request dst: %lu\n", ip_request->daddr);
-               printf("IP data %s\n", inet_ntoa(*((struct in_addr *)&ip_request->daddr )));
+               //printf("IP request dst: %lu\n", ip_request->daddr);
+               printf("Packet IP address %s\n", inet_ntoa(*((struct in_addr *)&ip_request->daddr )));
 
                //int val_16 = 0xFFFF0000;
                int val = 0xFFFFFF00;
                if(table->prefix[x] == 16) {
-                 printf("sweet 16\n");
+                 //printf("sweet 16\n");
                  val = 0xFFFF0000;
                }
-               if(table->prefix[x] == 16) {
+               if(table->prefix[x] == 16 && index == -1) {
+                 printf("INTERFACE is being reset by 16\n");
                  memcpy(interface_name, "rx-eth0", 10);
                  index = x;
+                 //memcpy(&ip_to_send->s_addr, &table->second_ip[x].s_addr, 4);
                }
 
                if(!((ip_request->daddr ^ table->first_ip[x].s_addr) & htonl(val))){
                  index = x;
+                 printf("INTERFACE name is being reset by 24\n");
                  //interface_name = table->name;
-                 memcpy(interface_name,&table->name[x],10);
+                 //memcpy(interface_name,&table->name[x],10);
                  printf("found in table\n");
                  printf("table: %s\n", interface_name);
                }
@@ -531,17 +549,55 @@ int main() {
 
 
 
+
+             // struct interface_mac_addresses {
+             //   u_char router_mac_addr[10][6];
+             //   struct in_addr router_ip_addr[10];
+             //   char int_name[10][10];
+             //   int total_sockets;
+             //   u_int file_descriptors[10];
+             // };
              int u = 0;
              int var = 0;
-             if (strlen(interface_name) > 1) {
+             if (index > -1) {
                for(; u < mac_addresses->total_sockets; u++) {
-                 if (strncmp(mac_addresses->int_name[u], interface_name+3, 3) == 0) {
+                 //if (strncmp(mac_addresses->int_name[u], interface_name+3, 3) == 0) {
+                 if (!strncmp(&(mac_addresses->int_name[u]),"eth",3) && atoi(mac_addresses->int_name[u]+3) == atoi(interface_name+6)) {
                    //printf("MATCH MAC ADDR\n");
                    var = u;
+                   printf("\n\n\n");
+                   printf("Router Info: \n");
+                   printf("\n");
+                   printf("Name: %s\n", mac_addresses->int_name[u]);
+                   printf("IP address: %s\n", inet_ntoa(*(struct in_addr*)&mac_addresses->router_ip_addr[var].s_addr));
+
+                   if (mac_addresses->file_descriptors[var] == packet_socket) {
+                     printf("ETH 1 Socket\n");
+                   }
+
+                   if (mac_addresses->file_descriptors[var] == eth0_socket) {
+                     printf("ETH 0 Socket\n");
+
+                   }
+
+                   if (mac_addresses->file_descriptors[var] == eth1_socket) {
+                     printf("ETH 2 Socket\n");
+
+                   }
+
+                   if (mac_addresses->file_descriptors[var] == eth3_socket) {
+                     printf("ETH 03Socket\n");
+
+                   }
+
                  }
                }
              }
 
+             printf("INTERFACE NAME: %s\n", interface_name);
+             if (table->prefix[index] == 24) {
+               memcpy(&ip_to_send->s_addr, &mac_addresses->router_ip_addr[var].s_addr, 4);
+             }
 
              // add our packet to the array
 
@@ -569,7 +625,7 @@ int main() {
              // this is going to change to broadcast
              memcpy(&(eth_arp_request->ether_dhost),broadcast_addr,6);
            //  memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
-             memcpy(&(eth_arp_request->ether_shost), &(our_mac),6);
+             memcpy(&(eth_arp_request->ether_shost), our_mac,6);
              //memcpy(&(eth_arp_request->ether_type), 0x06, 2);
              eth_arp_request->ether_type = ntohs(ETHERTYPE_ARP);
 
@@ -609,7 +665,7 @@ int main() {
              memcpy(&(arp_request->arp_tpa), &(ip_request->daddr), 4);
 
              // will need to send to correct socket
-             int y = send(mac_addresses->file_descriptors[num], reply_data, 42, 0);
+             int y = send(mac_addresses->file_descriptors[var], reply_data, 42, 0);
 
              if (y < 0) {
                printf("ERROR sending ARP Request!\n");
@@ -618,6 +674,7 @@ int main() {
              }
 
              printf("ARP Request packet sent\n");
+             free(arphdr_eahdr);
              // arp header here:
 
              // sending request here:
@@ -637,6 +694,8 @@ int main() {
   //free the interface list when we don't need it anymore
   printf("Exiting routers\n");
   freeifaddrs(ifaddr);
+  free(table);
+  free(mac_addresses);
   //exit
   return 0;
 }
