@@ -43,6 +43,9 @@ int checksumCalculated(char *buffer, size_t len) {
 
 int main() {
   // packet socket appears to be eth1
+
+  //TODO fix this later
+  int f = 0;
   int packet_socket;
   int lo_socket;
   int eth0_socket;
@@ -387,9 +390,10 @@ int main() {
         printf("Ether type: %x\n", ntohs(eth_request->ether_type));
 
         // checks if packet is arp
+        printf("Checking Ether Type\n");
         if (ntohs(eth_request->ether_type) == ETHERTYPE_ARP) {
           printf("\n \n \n");
-          printf("ARP packet\n");
+          printf("ARP REQUEST packet\n");
 
           //struct arp_header *arp_request = (struct arp_header*)(buf+14);
           struct ether_arp *arp_request = (struct ether_arp*)(buf+14);
@@ -449,6 +453,8 @@ int main() {
 
 
         }
+
+        printf("Checking If IP\n");
         if (ntohs(eth_request->ether_type) == ETHERTYPE_IP){
           // header for icmp request
           // print
@@ -505,6 +511,8 @@ int main() {
 
             printf("ICMP Echo Reply packet sent\n");
 
+        // this going to need to be a different else statement
+        // but seems to work for now!
         } else {
              printf("Entered else block\n");
              // we are receiving an IPv4 packet
@@ -538,8 +546,8 @@ int main() {
                if(!((ip_request->daddr ^ table->first_ip[x].s_addr) & htonl(val))){
                  index = x;
                  printf("INTERFACE name is being reset by 24\n");
-                 //interface_name = table->name;
-                 //memcpy(interface_name,&table->name[x],10);
+                 //interface_name = table->name[x];
+                 memcpy(interface_name,&table->name[x],10);
                  printf("found in table\n");
                  printf("table: %s\n", interface_name);
                }
@@ -586,7 +594,7 @@ int main() {
                    }
 
                    if (mac_addresses->file_descriptors[var] == eth3_socket) {
-                     printf("ETH 03Socket\n");
+                     printf("ETH 3 Socket\n");
 
                    }
 
@@ -625,7 +633,7 @@ int main() {
              // this is going to change to broadcast
              memcpy(&(eth_arp_request->ether_dhost),broadcast_addr,6);
            //  memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
-             memcpy(&(eth_arp_request->ether_shost), our_mac,6);
+             memcpy(&(eth_arp_request->ether_shost),  &(mac_addresses->router_mac_addr[var]),6);
              //memcpy(&(eth_arp_request->ether_type), 0x06, 2);
              eth_arp_request->ether_type = ntohs(ETHERTYPE_ARP);
 
@@ -645,7 +653,7 @@ int main() {
              // this may be wrong but double check
              //arp_reply->ea_hdr.arp_op=ARPOP_REPLY;
 
-             memcpy(&(arp_request->arp_sha), our_mac, 6);
+             memcpy(&(arp_request->arp_sha), &(mac_addresses->router_mac_addr[var]), 6);
              memcpy(&(arp_request->arp_spa), &(mac_addresses->router_ip_addr[var].s_addr), 4);
             // if (table->prefix[index] == 24) {
 
