@@ -63,6 +63,8 @@ int main() {
 
   // queue of possible packets
   char packet_queue[15][1500];
+
+  //struct 
   // inital val
  FILE *file = fopen("r1-table.txt","r");
 
@@ -380,6 +382,7 @@ int main() {
 
         len = sizeof(tmp);
 
+        // here we are receiving the inital packet
         n = recvfrom(i, buf, 1500,0,(struct sockaddr*)&recvaddr, &recvaddrlen);
 
         if(recvaddr.sll_pkttype==PACKET_OUTGOING)
@@ -446,6 +449,8 @@ int main() {
             // we are forwarding the packet now
 
             // here we will get data from arp reply
+            // are we assuming all packets are ip?
+
 
 
           }
@@ -514,6 +519,9 @@ int main() {
         // this going to need to be a different else statement
         // but seems to work for now!
         } else {
+
+             // we're only going to want to send this one time
+
              printf("Entered else block\n");
              // we are receiving an IPv4 packet
              // we will need to look at dst
@@ -683,9 +691,43 @@ int main() {
 
              printf("ARP Request packet sent\n");
              free(arphdr_eahdr);
-             // arp header here:
+             char arp_reply_data[1500];
 
-             // sending request here:
+             // lets block until we recive the arp reply with the mac address
+             int hop_mac = 1;
+             // may not need to do this?
+
+             struct sockaddr_ll recvaddr;
+             int recvrlen;
+
+             while (hop_mac) {
+               recvfrom(mac_addresses->file_descriptors[var], arp_reply_data, 1500, 0, (struct sockaddr*) &recvaddr, recvrlen);
+               if (recvaddr.sll_pkttype == PACKET_OUTGOING) {
+                 continue;
+               }
+               // break out of the loop
+               // we don't have to block anymore
+               hop_mac = 0;
+             }
+
+             // now we can forward?
+
+             // here we create a new ether header
+             struct ether_header *next_eth_reply = (struct ether_header *) arp_reply_data;
+             //int h = 0;
+             // for (;h<mac_addresses->table_length;h++) {
+             //   if (strncmpmac_addresses)
+             // }
+             memcpy(next_eth_reply->ether_dhost, next_eth_reply->ether_shost, 6);
+             memcpy(next_eth_reply->ether_shost, mac_addresses->router_mac_addr[var], 6);
+             next_eth_reply->ether_type = ntohs(ETHERTYPE_IP);
+
+             printf("sending reply?");
+             char forward_data[1500];
+             // may need to change this
+             memcpy(&forward_data, &buf, 1500);
+             memcpy(&forward_data, &arp_reply_data, 14);
+             send(mac_addresses->file_descriptors[var], forward_data, 98, 0);
 
           }
           }
