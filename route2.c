@@ -451,7 +451,13 @@ int main() {
             // here we will get data from arp reply
             // are we assuming all packets are ip?
 
-
+	    struct ether_header *eth_reply = (struct ether_header*)reply_data;
+	    struct iphdr *ip_reply = (struct iphdr*)(reply_data+sizeof(struct ether_header));
+            
+            int i = 0;
+	    while(i < 15){
+		packet_queue[i]
+	    }
 
           }
 
