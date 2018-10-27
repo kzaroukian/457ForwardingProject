@@ -64,7 +64,7 @@ int main() {
   // queue of possible packets
   char packet_queue[15][1500];
 
-  //struct 
+  //struct
   // inital val
  FILE *file = fopen("r1-table.txt","r");
 
@@ -231,7 +231,7 @@ int main() {
 
             eth3_socket = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
             //printf("PCKT SOCKET %d\n", eth3_socket);
-            mac_addresses->file_descriptors[i] = packet_socket;
+            mac_addresses->file_descriptors[i] = eth3_socket;
 
             if(eth3_socket<0){
               perror("socket");
@@ -396,7 +396,7 @@ int main() {
         printf("Checking Ether Type\n");
         if (ntohs(eth_request->ether_type) == ETHERTYPE_ARP) {
           printf("\n \n \n");
-          printf("ARP REQUEST packet\n");
+          printf("ARP packet\n");
 
           //struct arp_header *arp_request = (struct arp_header*)(buf+14);
           struct ether_arp *arp_request = (struct ether_arp*)(buf+14);
@@ -447,6 +447,7 @@ int main() {
             printf("ARP Reply packet sent\n");
           } else if (arp_request->arp_op == ntohs(ARPOP_REPLY)) {
             // we are forwarding the packet now
+              printf("Got an Arp Reply\n");
 
             // here we will get data from arp reply
             // are we assuming all packets are ip?
@@ -465,12 +466,14 @@ int main() {
           // print
           printf("ICMP Request\n");
           struct iphdr *ip_request = (struct iphdr*)(buf+sizeof(struct ether_header));
-          u_short ip_len = ip_request->ihl * 4;
+          //u_short ip_len = ip_request->ihl * 4;
           //printf("Protocol # %d\n", ip_request->protocol);
+
+          // may need to check something other than this
           if (ip_request->protocol==1 && ip_request->daddr == mac_addresses->router_ip_addr[num].s_addr) {
             //printf("IP header");
             // struct icmphdr *icmp_request = (struct icmphdr*)(buf + 34);
-            struct icmp_header *icmp_request = (struct icmp_header*)(buf + 14 + ip_len);
+            struct icmp_header *icmp_request = (struct icmp_header*)(buf + 14 + 20);
             //printf("Request Header created\n");
             //printf("%d\n", sizeof(struct icmphdr));
 
@@ -529,6 +532,7 @@ int main() {
              // here we will need to do a routing table look up to see where we are sending to
              int x = 0;
              char interface_name[10];
+             // table index
              int index = -1;
              int socket = 0;
              struct in_addr *ip_to_send = (struct in_addr*)malloc(sizeof(struct in_addr));
@@ -574,6 +578,8 @@ int main() {
              //   u_int file_descriptors[10];
              // };
              int u = 0;
+
+             // forwarding socket
              int var = 0;
              if (index > -1) {
                for(; u < mac_addresses->total_sockets; u++) {
@@ -691,6 +697,9 @@ int main() {
 
              printf("ARP Request packet sent\n");
              free(arphdr_eahdr);
+
+             // forwarding
+
              char arp_reply_data[1500];
 
              // lets block until we recive the arp reply with the mac address
@@ -705,6 +714,8 @@ int main() {
                if (recvaddr.sll_pkttype == PACKET_OUTGOING) {
                  continue;
                }
+               printf("blocking till we receive the packet\n"
+             );
                // break out of the loop
                // we don't have to block anymore
                hop_mac = 0;
@@ -727,7 +738,10 @@ int main() {
              // may need to change this
              memcpy(&forward_data, &buf, 1500);
              memcpy(&forward_data, &arp_reply_data, 14);
-             send(mac_addresses->file_descriptors[var], forward_data, 98, 0);
+
+             // size might be different
+             // don't use 98
+             send(mac_addresses->file_descriptors[var], forward_data, sizeof(forward_data), 0);
 
           }
           }
