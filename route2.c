@@ -14,7 +14,7 @@
 #include <string.h>
 
 /**
- * @Author Kaylin Zaroukian, Runquan Ye, Cody Krueger
+ * @Author Kaylin Zaroukian, Jerry, Cody Krueger
  * @Date 14 OCT 2018
  * CIS 457 Data Comm
  * Project 2
@@ -452,25 +452,7 @@ int main() {
             // here we will get data from arp reply
             // are we assuming all packets are ip?
 
-	    struct ether_header *eth_reply = (struct ether_header*)reply_data;
-	    struct iphdr *ip_reply = (struct iphdr*)(reply_data+sizeof(struct ether_header));
-            
-            int k = 0;
-	    
-	    while(k < 15){
-		
-		int tableIndex = 0;
-		for(; tableIndex < 10; tableIndex++){
-			if(){
-				memcpy(mac_addresses->router_mac_addr[s], [tableIndex],6);
-				if(){
-					
-					send(i, packet_queue[k], 98, 0);	
-				}
-			}
-				
-		}
-	    }
+
 
           }
 
