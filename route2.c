@@ -734,10 +734,10 @@ int main() {
              next_eth_reply->ether_type = ntohs(ETHERTYPE_IP);
 
              printf("sending reply?");
-             char forward_data[1500];
+             char forward_data[98];
              // may need to change this
-             memcpy(&forward_data, &buf, 1500);
-             memcpy(&forward_data, &arp_reply_data, 14);
+             memcpy(&forward_data, &buf[0], 98);
+             memcpy(&forward_data[0], &arp_reply_data, 14);
 
              // size might be different
              // don't use 98
