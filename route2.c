@@ -296,7 +296,7 @@ int main() {
 
   //table->table_length = length;
   int k = 0;
-  for (k = 0; k < table->table_length-1; k++) {
+  for (k = 0; k < table->table_length; k++) {
      // char test[strlen(ip1[k])];
      // memcpy(test, ip1[k], strlen(ip1[k]));
      inet_aton(ip1[k], &table->first_ip[k]);
@@ -315,11 +315,13 @@ int main() {
      table->prefix_bytes[k] = (-1) << 32 - atoi(prefix[k]);
      memcpy(table->name[k], interface[k],8);
 
-     // printf("FIRST IP %s\n", inet_ntoa(table->first_ip[k]));
-     // printf("SECOND IP %s\n", inet_ntoa(table->second_ip[k]));
-     // printf("PREFIX %d\n", table->prefix[k]);
-     // printf("PREFIX BYTES %d\n", table->prefix_bytes[k]);
-     // printf("NAME %s\n", table->name[k]);
+     printf("ENTRY #%d\n", k);
+     printf("FIRST IP %s\n", inet_ntoa(table->first_ip[k]));
+     printf("SECOND IP %s\n", inet_ntoa(table->second_ip[k]));
+     printf("PREFIX %d\n", table->prefix[k]);
+     printf("PREFIX BYTES %d\n", table->prefix_bytes[k]);
+     printf("NAME %s\n", table->name[k]);
+     printf("\n");
   }
 
 
@@ -467,6 +469,7 @@ int main() {
           if (ip_request->protocol==1 && ip_request->daddr == mac_addresses->router_ip_addr[num].s_addr) {
             //printf("IP header");
             // struct icmphdr *icmp_request = (struct icmphdr*)(buf + 34);
+            printf("ICMP for us\n");
             struct icmp_header *icmp_request = (struct icmp_header*)(buf + 14 + 20);
             //printf("Request Header created\n");
             //printf("%d\n", sizeof(struct icmphdr));
@@ -543,13 +546,12 @@ int main() {
 
                //int val_16 = 0xFFFF0000;
 
-               memcpy(ip2, inet_ntoa(*((struct in_addr *)&table->first_ip[x].s_addr)),8);
                int val = 0xFFFFFF00;
                if(table->prefix[x] == 16) {
                  //printf("sweet 16\n");
                  val = 0xFFFF0000;
                }
-               if(table->prefix[x] == 16 && index == -1) {
+               if(table->prefix[x] == 16 ) {
                  printf("INTERFACE is being reset by 16\n");
                  // if (table->first_ip[x].s_addr == (ip_request->daddr & 0xFFFF0000)) {
                  //   printf("match test\n");
@@ -557,11 +559,16 @@ int main() {
                  // if (strncmp(ip1,ip2,2) == 0) {
                  //
                  // }
+                 memcpy(ip2, inet_ntoa(*((struct in_addr *)&table->first_ip[x].s_addr)),8);
+
                  printf("IP 1: %s\n", ip1);
                  printf("IP 2: %s\n", ip2);
 
-                 memcpy(interface_name, "rx-eth0", 10);
-                 index = x;
+                 if(strncmp(ip1,ip2,4) == 0) {
+                   printf("match\n");
+                   memcpy(interface_name, "rx-eth0", 10);
+                   index = x;
+                 }
                  //memcpy(&ip_to_send->s_addr, &table->second_ip[x].s_addr, 4);
                }
 
@@ -723,6 +730,7 @@ int main() {
                    continue;
                  }
                  printf("blocking till we receive the packet\n");
+                 hop_mac = 0;
                  // break out of the loop
                  // we don't have to block anymore
                  // if (current_time != -1) {
@@ -788,11 +796,13 @@ int main() {
                //     continue;
                //   }
                if (b == 1) {
+                 //printf("%s\n" );
 
                } else {
                  // now we can forward?
 
                  // here we create a new ether header
+                 printf("Forwarding the Packet!\n");
                  struct ether_header *next_eth_reply = (struct ether_header *) arp_reply_data;
                  //int h = 0;
                  // for (;h<mac_addresses->table_length;h++) {
