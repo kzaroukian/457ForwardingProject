@@ -13,6 +13,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+/****
+ * Method cksum calculates the internet checksum for the data passed to it.
+ * checksum must be zeroed before ipheader or icmp checksum is calulated. 
+ * 
+ * @param buf - note, a char array must be first cast as a short
+ * @return - 
+ * 
+ * note: before using this method, the data to be calculated must be even.
+ * if it is not, that data must be padded with 8 bits of 0 (1 byte) to work properly
+****/
+
 u_short cksum(u_short* buf, int count) {
   register u_long sum = 0;
   while (count--) {
