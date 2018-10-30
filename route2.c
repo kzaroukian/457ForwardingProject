@@ -22,6 +22,17 @@
  * References:
  */
 
+  /****
+   * Method cksum calculates the internet checksum for the data passed to it.
+   * checksum must be zeroed before ipheader or icmp checksum is calulated.
+   *
+   * @param buf - note, a char array must be first cast as a short
+   * @param count - size in bytes/2 of the data to have a checksum calculated on it
+   * @return u_short - the calculated checksum of the data
+   *
+   * note: before using this method, the data to be calculated must be even.
+   * if it is not, that data must be padded with 8 bits of 0 (1 byte) to work properly
+  ****/
  u_short cksum(u_short* buf, int count) {
    register u_long sum = 0;
    while (count--) {
@@ -531,22 +542,49 @@ int main() {
           //  printf("Reply header \n");
 
             //populates the ethernet header
+            //printf("Eth header\n");
             //memcpy(&(eth_reply),&(eth_request),20);
             memcpy(&(eth_reply->ether_dhost),&(eth_request->ether_shost),6);
             memcpy(&(eth_reply->ether_shost), &(eth_request->ether_dhost),6);
             memcpy(&(eth_reply->ether_type), &(eth_request->ether_type), 2);
-            //printf("Eth header\n");
 
+            //printf("IP header\n");
             // populates the ip header
             memcpy(&(ip_reply->saddr), &(ip_request->daddr), 4);
             memcpy(&(ip_reply->daddr), &(ip_request->saddr), 4);
-            //printf("IP header\n");
 
+            //Adjust TTL ----------------------------------------
+            ip_reply->ttl -= 1; //**testing
+            //prepairing data for ip checksum ---------------
+            //memcpy(dest src num)
+            //reset checksum
+            ip_reply->check = 0;
+            char ip_pre_ck[20];
+            memcpy(&(ip_pre_ck), &((ip_reply)), 20);
+            //call method
+            u_short* ip_cksum = (u_short*)ip_pre_ck;
+            u_short ip_ck = 0;
+            ip_ck = cksum(ip_cksum, 10);
+            //Update checksum ------------------------------------
+            ip_reply->check = ip_ck;
+
+            //printf("ICMP hdr\n");
             // populates the icmp headers
             icmp_reply->type = 0;
             icmp_reply->code = 0;
-            memcpy(&(icmp_reply->checksum), &(ip_request->check), 2);
-            //printf("ICMP hdr\n");
+
+            //prepairing data for icmp checksum ---------------
+            //memcpy(dest src num)
+            //reset checksum
+            icmp_reply->checksum = 0;
+            char icmp_pre_ck[48];
+            memcpy(&(icmp_pre_ck), &((icmp_reply)), 48); //**need sizeof and a malloc here?
+            u_short* icmp_cksum = (u_short*)icmp_pre_ck;
+            u_short icmp_ck = 0;
+            icmp_ck = cksum(icmp_cksum, 24);
+            //Update checksum ------------------------------------
+            icmp_reply->checksum = icmp_ck;
+            //memcpy(&(icmp_reply->checksum), &(ip_request->check), 2);
 
             int x = send(i, reply_data, 98, 0);
 
@@ -809,6 +847,9 @@ int main() {
                  char error_hdr[1500];
                  memcpy(error_hdr,buf,1500);
 
+                //add payload to error message
+                memcpy(error_hdr+42, error_hdr+14, 32);
+
                  printf("Getting seg fault somewhere\n");
 
                  struct ether_header *eth_error = (struct ether_header *) error_hdr;
@@ -843,9 +884,37 @@ int main() {
 
                  printf("Or here?\n");
 
-
+                //*****
                  // this is going to have to change once checksum works
-                 icmp_error->checksum = ip_request->check;
+                 //icmp_error->checksum = ip_request->check;
+
+                //prepairing data for ip checksum ---------------
+                //memcpy(dest src num)
+                //reset checksum
+                ip_error->check = 0;
+                char ip_pre_ck[20];
+                memcpy(&(ip_pre_ck), &((ip_error)), 20);
+                //call method
+                u_short* ip_cksum = (u_short*)ip_pre_ck;
+                u_short ip_ck = 0;
+                ip_ck = cksum(ip_cksum, 10);
+                //Update checksum ------------------------------------
+                ip_error->check = ip_ck;
+
+                //prepairing data for icmp checksum ---------------
+                //memcpy(dest src num)
+                //reset checksum
+                icmp_error->checksum = 0;
+                // NOTE: theoretically the unused bits should not affect the rest of the packet
+                // because even if they are not 0, they should still not affect bit errors
+                // i could risk a hard memset to 0 if it is a problem
+                char icmp_pre_ck[48];
+                memcpy(&(icmp_pre_ck), &((icmp_error)), 48); //**need sizeof and a malloc here?
+                u_short* icmp_cksum = (u_short*)icmp_pre_ck;
+                u_short icmp_ck = 0;
+                icmp_ck = cksum(icmp_cksum, 24);
+                //Update checksum ------------------------------------
+                icmp_error->checksum = icmp_ck;
 
                  int x = send(i, error_hdr, 98, 0);
 
@@ -885,6 +954,30 @@ int main() {
 
                  // size might be different
                  // don't use 98
+
+                //----------------------------------------------------------------**
+                //test if packet is ip (unnessesary with line above currently)
+                if (next_eth_reply->ether_type == ETHERTYPE_IP) {
+                  //cast network layer as iphdr struct
+                  struct iphdr *ip_reply = (struct iphdr*)(buf+sizeof(struct ether_header));
+                  //Adjust TTL ----------------------------------------
+                  ip_reply->ttl -= 1; //**testing
+                  //prepairing data for ip checksum ---------------
+                  //memcpy(dest src num)
+                  //reset checksum
+                  ip_reply->check = 0;
+                  char ip_pre_ck[20];
+                  memcpy(&(ip_pre_ck), &((ip_reply)), 20);
+                  //call method
+                  u_short* ip_cksum = (u_short*)ip_pre_ck;
+                  u_short ip_ck = 0;
+                  ip_ck = cksum(ip_cksum, 10);
+                  //Update checksum ------------------------------------
+                  ip_reply->check = ip_ck;
+
+                  //note - if forwarding packet, no update below ip is needed since that data will not change
+                }
+
                  send(mac_addresses->file_descriptors[var], forward_data, sizeof(forward_data), 0);
 
                  // implement a timeout for arp reply
@@ -899,6 +992,9 @@ int main() {
                char error_hdr[1500];
                memcpy(error_hdr,buf,1500);
 
+              //add payload to error message
+              memcpy(error_hdr+42, error_hdr+14, 32);
+
                struct ether_header *eth_error = (struct ether_header *) error_hdr;
                struct iphdr *ip_error = (struct iphdr *) (error_hdr + 14);
                struct icmp_header *icmp_error = (struct icmp_header *)(error_hdr + 14 + 20);
@@ -912,12 +1008,42 @@ int main() {
                memcpy(&ip_error->daddr, &ip_request->saddr, 4);
                ip_error->protocol = 1;
 
+              //prepairing data for ip checksum ---------------
+              //memcpy(dest src num)
+              //reset checksum
+              ip_error->check = 0;
+              char ip_pre_ck[20];
+              memcpy(&(ip_pre_ck), &((ip_error)), 20);
+              //call method
+              u_short* ip_cksum = (u_short*)ip_pre_ck;
+              u_short ip_ck = 0;
+              ip_ck = cksum(ip_cksum, 10);
+              //Update checksum ------------------------------------
+              ip_error->check = ip_ck;
+
                // icmp header
                icmp_error->type = ICMP_DEST_UNREACH;
                icmp_error->code = ICMP_NET_UNREACH;
 
+              //*****
                // this is going to have to change once checksum works
-               icmp_error->checksum = ip_request->check;
+               //icmp_error->checksum = ip_request->check;
+
+              //prepairing data for icmp checksum ---------------
+              //memcpy(dest src num)
+              //reset checksum
+              icmp_error->checksum = 0;
+              // NOTE: theoretically the unused bits should not affect the rest of the packet
+              // because even if they are not 0, they should still not affect bit errors
+              // i could risk a hard memset to 0 if it is a problem
+              char icmp_pre_ck[48];
+              memcpy(&(icmp_pre_ck), &((icmp_error)), 48); //**need sizeof and a malloc here?
+              u_short* icmp_cksum = (u_short*)icmp_pre_ck;
+              u_short icmp_ck = 0;
+              icmp_ck = cksum(icmp_cksum, 24);
+              //Update checksum ------------------------------------
+              icmp_error->checksum = icmp_ck;
+
 
                int x = send(i, error_hdr, 98, 0);
 
@@ -927,7 +1053,7 @@ int main() {
                  continue;
                }
 
-
+            // TTL == 0 -------------------------------------------------
              } else if (ip_request->ttl == 0) {
                // TIME to drop the packet
                // this address is NOT in our routing table
@@ -935,6 +1061,9 @@ int main() {
                // create error packet
                char error_hdr[1500];
                memcpy(error_hdr,buf,1500);
+
+              //add payload to error message
+              memcpy(error_hdr+42, error_hdr+14, 32);
 
                struct ether_header *eth_error = (struct ether_header *) error_hdr;
                struct iphdr *ip_error = (struct iphdr *) (error_hdr + 14);
@@ -953,8 +1082,40 @@ int main() {
                icmp_error->type = ICMP_TIME_EXCEEDED;
                icmp_error->code = ICMP_EXC_TTL;
 
+              //*****
                // this is going to have to change once checksum works
-               icmp_error->checksum = ip_request->check;
+               //icmp_error->checksum = ip_request->check;
+
+              //Adjust TTL ----------------------------------------
+              ip_error->ttl = 32; //**testing
+
+              //prepairing data for ip checksum ---------------
+              //memcpy(dest src num)
+              //reset checksum
+              ip_error->check = 0;
+              char ip_pre_ck[20];
+              memcpy(&(ip_pre_ck), &((ip_error)), 20);
+              //call method
+              u_short* ip_cksum = (u_short*)ip_pre_ck;
+              u_short ip_ck = 0;
+              ip_ck = cksum(ip_cksum, 10);
+              //Update checksum ------------------------------------
+              ip_error->check = ip_ck;
+
+              //prepairing data for icmp checksum ---------------
+              //memcpy(dest src num)
+              //reset checksum
+              icmp_error->checksum = 0;
+              // NOTE: theoretically the unused bits should not affect the rest of the packet
+              // because even if they are not 0, they should still not affect bit errors
+              // i could risk a hard memset to 0 if it is a problem
+              char icmp_pre_ck[48];
+              memcpy(&(icmp_pre_ck), &((icmp_error)), 48); //**need sizeof and a malloc here?
+              u_short* icmp_cksum = (u_short*)icmp_pre_ck;
+              u_short icmp_ck = 0;
+              icmp_ck = cksum(icmp_cksum, 24);
+              //Update checksum ------------------------------------
+              icmp_error->checksum = icmp_ck;
 
                int x = send(i, error_hdr, 98, 0);
 
