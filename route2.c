@@ -47,6 +47,11 @@ int main() {
   int eth3_socket;
   int packet_num = 0;
 
+  // create timeout for arp replys
+   struct timeval timeout;
+   timeout.tv_sec = 1;
+   timeout.tv_usec = 0;
+
   struct interface_mac_addresses {
     u_char router_mac_addr[10][6];
     struct in_addr router_ip_addr[10];
@@ -344,7 +349,7 @@ int main() {
   while(1){
     //printf("Entered while loop\n");
     fd_set tmp_set=sockets;
-    select(FD_SETSIZE,&tmp_set,NULL,NULL,NULL);
+    select(FD_SETSIZE,&tmp_set,NULL,NULL,&timeout);
 
     int i;
     int len;
@@ -396,6 +401,20 @@ int main() {
 
           //struct arp_header *arp_request = (struct arp_header*)(buf+14);
           struct ether_arp *arp_request = (struct ether_arp*)(buf+14);
+
+          if (strncmp(inet_ntoa(*((struct in_addr *)&arp_request->arp_spa)), "0.0.0.0", 7) == 0) {
+            // we want to drop the packet
+            printf("all 0s\n");
+            break;
+
+          }
+
+          if (strncmp(inet_ntoa(*((struct in_addr *)&arp_request->arp_tpa)), "0.0.0.0", 7) == 0) {
+            // we want to drop the packet
+            printf("all 0s\n");
+            break;
+
+          }
 
           if (arp_request->arp_op == ntohs(ARPOP_REQUEST)) {
             char reply_data[1500];
@@ -462,6 +481,29 @@ int main() {
           // print
           printf("ICMP Request\n");
           struct iphdr *ip_request = (struct iphdr*)(buf+sizeof(struct ether_header));
+
+          if (strncmp(inet_ntoa(*((struct in_addr *)&ip_request->saddr)), "0.0.0.0", 7) == 0) {
+            // we want to drop the packet
+            printf("all 0s\n");
+            break;
+
+          }
+
+          if (strncmp(inet_ntoa(*((struct in_addr *)&ip_request->daddr)), "0.0.0.0", 7) == 0) {
+            // we want to drop the packet
+            printf("all 0s\n");
+            break;
+
+          }
+
+          // if (strncmp(inet_ntoa(*((struct in_addr *)&ip_request->daddr)),inet_ntoa(*((struct in_addr *)&ip_request->saddr)), 4) == 0) {
+          //   // we want to drop the packet
+          //   printf("we don't want to arp ourselves\n");
+          //   break;
+          //
+          // }
+
+
           //u_short ip_len = ip_request->ihl * 4;
           //printf("Protocol # %d\n", ip_request->protocol);
 
@@ -552,7 +594,6 @@ int main() {
                  val = 0xFFFF0000;
                }
                if(table->prefix[x] == 16 ) {
-                 printf("INTERFACE is being reset by 16\n");
                  // if (table->first_ip[x].s_addr == (ip_request->daddr & 0xFFFF0000)) {
                  //   printf("match test\n");
                  // }
@@ -567,13 +608,15 @@ int main() {
                  if(strncmp(ip1,ip2,4) == 0) {
                    printf("match\n");
                    memcpy(interface_name, "rx-eth0", 10);
+                   printf("INTERFACE is being reset by 16\n");
+
                    index = x;
                  }
                  //memcpy(&ip_to_send->s_addr, &table->second_ip[x].s_addr, 4);
                }
 
                // only works for 24 bits
-               if(!((ip_request->daddr ^ table->first_ip[x].s_addr) & htonl(val))){
+               if(!((ip_request->daddr ^ table->first_ip[x].s_addr) & htonl(val)) && table->prefix[x] == 24){
                  index = x;
                  printf("INTERFACE name is being reset by 24\n");
                  //interface_name = table->name[x];
@@ -592,6 +635,7 @@ int main() {
              // if our index is > -1 then entry is in the table else
              // otherwise we want to drop the packet
              if (index > -1 && ip_request->ttl > 0 ) {
+               printf("in our routing table");
                // send arp request
 
                int u = 0;
@@ -637,9 +681,9 @@ int main() {
                }
 
                printf("INTERFACE NAME: %s\n", interface_name);
-               if (table->prefix[index] == 24) {
-                 memcpy(&ip_to_send->s_addr, &mac_addresses->router_ip_addr[var].s_addr, 4);
-               }
+               // if (table->prefix[index] == 24) {
+               //   memcpy(&ip_to_send->s_addr, &mac_addresses->router_ip_addr[var].s_addr, 4);
+               // }
 
                // add our packet to the array
 
@@ -717,11 +761,6 @@ int main() {
                int current_time;
                int b = 0;
 
-              // create timeout for arp replys
-               struct timeval timeout;
-               timeout.tv_sec = 6;
-               timeout.tv_usec = 0;
-
                setsockopt(mac_addresses->file_descriptors[var], SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 
                while (hop_mac) {
@@ -730,72 +769,92 @@ int main() {
                    continue;
                  }
                  printf("blocking till we receive the packet\n");
-                 hop_mac = 0;
-                 // break out of the loop
-                 // we don't have to block anymore
-                 // if (current_time != -1) {
-                 //   hop_mac = 0;
-                 // }
 
-                 // we have a timeout
-                 // if (current_time == -1) {
-                 //   break;
-                 // }
+                 if (current_time == -1) {
+                   printf("no arp reply\n");
+                   //break;
+                 }
+                 hop_mac = 0;
                }
 
-               // if (current_time == -1) {
-               //   // this address is NOT in our routing table
-               //   printf("This entry: %s has no arp reply\n", inet_ntoa(*((struct in_addr *)&(ip_request->saddr))));
-               //   // create error packet
-               //   char error_hdr[1500];
-               //   memcpy(error_hdr,buf,1500);
+               if (strncmp(inet_ntoa(*((struct in_addr *)&ip_request->saddr)), "0.0.0.0", 7) == 0) {
+                 // we want to drop the packet
+                 printf("all 0s\n");
+                 //break;
+
+               }
+
+               if (strncmp(inet_ntoa(*((struct in_addr *)&ip_request->daddr)), "0.0.0.0", 7) == 0) {
+                 // we want to drop the packet
+                 printf("all 0s\n");
+                 break;
+
+               }
+
+               // if (strncmp(inet_ntoa(*((struct in_addr *)&ip_request->daddr)),inet_ntoa(*((struct in_addr *)&ip_request->saddr)), 6) == 0) {
+               //   // we want to drop the packet
+               //   printf("we don't want to arp ourselves\n");
+               //   break;
                //
-               //   printf("Getting seg fault somewhere\n");
-               //
-               //   struct ether_header *eth_error = (struct ether_header *) error_hdr;
-               //   struct iphdr *ip_error = (struct iphdr *) (error_hdr + 14);
-               //   struct icmp_header *icmp_error = (struct icmp_header *)(error_hdr + 14 + 20);
-               //
-               //   printf("Is it here?\n");
-               //
-               //
-               //   memcpy(&eth_error->ether_shost,our_mac, 6);
-               //   printf("ether_shost\n");
-               //   memcpy(&eth_error->ether_dhost, &eth_request->ether_shost, 6);
-               //   printf("ether_dhost\n");
-               //
-               //   //memcpy(&eth_error->ether_type, ntohs(ETHERTYPE_IP), 2);
-               //   eth_error->ether_type = ntohs(ETHERTYPE_IP);
-               //
-               //   printf("ether_type\n");
-               //
-               //   memcpy(&ip_error->saddr, &mac_addresses->router_ip_addr[num].s_addr, 4);
-               //   printf("ip s_addr\n");
-               //
-               //   memcpy(&ip_error->daddr, &ip_request->saddr, 4);
-               //   ip_error->protocol = 1;
-               //
-               //   printf("Maybe here?\n");
-               //
-               //
-               //   // icmp header
-               //   icmp_error->type = ICMP_DEST_UNREACH;
-               //   icmp_error->code = ICMP_HOST_UNREACH;
-               //
-               //   printf("Or here?\n");
-               //
-               //
-               //   // this is going to have to change once checksum works
-               //   icmp_error->checksum = ip_request->check;
-               //
-               //   int x = send(i, error_hdr, 98, 0);
-               //
-               //   if (x < 0) {
-               //     printf("ERROR sending ICMP HOST UNREACHABLE ERROR!\n");
-               //     perror("Error sending ICMP HOST UNREACHABLE ERROR");
-               //     continue;
-               //   }
-               if (b == 1) {
+               // }
+
+               struct ether_header *block_eth_result = (struct ether_header *) arp_reply_data;
+               printf("%02x\n", block_eth_result->ether_type);
+               printf("recv val %d\n", current_time);
+
+               if (ntohs(block_eth_result->ether_type) != ETHERTYPE_ARP) {
+                 // this address is NOT in our routing table
+                 printf("This entry: %s has no arp reply\n", inet_ntoa(*((struct in_addr *)&(ip_request->saddr))));
+                 // create error packet
+                 char error_hdr[1500];
+                 memcpy(error_hdr,buf,1500);
+
+                 printf("Getting seg fault somewhere\n");
+
+                 struct ether_header *eth_error = (struct ether_header *) error_hdr;
+                 struct iphdr *ip_error = (struct iphdr *) (error_hdr + 14);
+                 struct icmp_header *icmp_error = (struct icmp_header *)(error_hdr + 14 + 20);
+
+                 printf("Is it here?\n");
+
+
+                 memcpy(&eth_error->ether_shost,our_mac, 6);
+                 printf("ether_shost\n");
+                 memcpy(&eth_error->ether_dhost, &eth_request->ether_shost, 6);
+                 printf("ether_dhost\n");
+
+                 //memcpy(&eth_error->ether_type, ntohs(ETHERTYPE_IP), 2);
+                 eth_error->ether_type = ntohs(ETHERTYPE_IP);
+
+                 printf("ether_type\n");
+
+                 memcpy(&ip_error->saddr, &mac_addresses->router_ip_addr[num].s_addr, 4);
+                 printf("ip s_addr\n");
+
+                 memcpy(&ip_error->daddr, &ip_request->saddr, 4);
+                 ip_error->protocol = 1;
+
+                 printf("Maybe here?\n");
+
+
+                 // icmp header
+                 icmp_error->type = ICMP_DEST_UNREACH;
+                 icmp_error->code = ICMP_HOST_UNREACH;
+
+                 printf("Or here?\n");
+
+
+                 // this is going to have to change once checksum works
+                 icmp_error->checksum = ip_request->check;
+
+                 int x = send(i, error_hdr, 98, 0);
+
+                 if (x < 0) {
+                   printf("ERROR sending ICMP HOST UNREACHABLE ERROR!\n");
+                   perror("Error sending ICMP HOST UNREACHABLE ERROR");
+                   continue;
+               }
+               //if (b == 1) {
                  //printf("%s\n" );
 
                } else {
@@ -803,20 +862,26 @@ int main() {
 
                  // here we create a new ether header
                  printf("Forwarding the Packet!\n");
+                 char forward_data[n];
+                 memcpy(&forward_data, &buf, n);
                  struct ether_header *next_eth_reply = (struct ether_header *) arp_reply_data;
+                 struct ether_header *new_eth_header = (struct ether_header *)forward_data;
+
+
                  //int h = 0;
                  // for (;h<mac_addresses->table_length;h++) {
                  //   if (strncmpmac_addresses)
                  // }
-                 memcpy(next_eth_reply->ether_dhost, next_eth_reply->ether_shost, 6);
-                 memcpy(next_eth_reply->ether_shost, mac_addresses->router_mac_addr[var], 6);
+                 memcpy(new_eth_header->ether_dhost, next_eth_reply->ether_shost, 6);
+
+                 // source may need to be the router
+                 //memcpy(new_eth_header->ether_shost, mac_addresses->router_mac_addr[var], 6);
                  next_eth_reply->ether_type = ntohs(ETHERTYPE_IP);
 
                  printf("sending reply?");
-                 char forward_data[98];
                  // may need to change this
-                 memcpy(&forward_data, &buf[0], 98);
-                 memcpy(&forward_data[0], &arp_reply_data, 14);
+                // memcpy(&forward_data, &buf[0], 98);
+                 //memcpy(&forward_data[0], &arp_reply_data, 14);
 
                  // size might be different
                  // don't use 98
@@ -908,7 +973,7 @@ int main() {
       }
       //printf("For Loop #%d\n", i);
     }
-    printf("Exiting for loop\n");
+    //printf("Exiting for loop\n");
     FD_CLR(i,&sockets);
 
   }
